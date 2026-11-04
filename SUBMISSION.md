@@ -25,7 +25,7 @@
 
 | Resource | URL |
 |----------|-----|
-| **Repo** | `[REPO_LINK_PLACEHOLDER]` |
+| **Repo** | `https://github.com/gnshx/switch-change-desk` |
 | **Demo video** | `[VIDEO_LINK_PLACEHOLDER]` |
 | **Blog post** | `[BLOG_LINK_PLACEHOLDER]` |
 
@@ -43,12 +43,14 @@
 ### 2. Technical Implementation
 - [x] `tools/apply_change.sh` — 4-check policy gate with tamper evidence
 - [x] `tools/test_gate.sh` — 5 automated tests; all pass (`5/5`)
+- [x] `tools/pse_team_loop.sh` — Full multi-agent PSE loop orchestrator (happy, continuous, tamper, outsider, reject)
+- [x] Automated CI validation pipeline (`make ci`) testing all policy gates
 - [x] `demo/run_happy_path.sh` — offline fixture demo, verified PASS
 - [x] `demo/run_tamper_beat.sh` — tamper detection demo, verified PASS
-- [x] `Makefile` — `make test`, `make demo-happy`, `make demo-tamper`, `make check`, `make reset`
+- [x] `Makefile` — `make check`, `make test`, `make demo-happy`, `make demo-tamper`, `make loop`, `make loop-continuous`, `make loop-tamper`, `make loop-outsider`, `make loop-reject`, `make ci`, `make reset`
 - [x] `.gitignore` — evidence run dirs excluded, .gitkeep preserved
 - [x] SHA-256 hash stored in `plan-hash.txt` and verified at gate time
-- [x] Full audit trail in `evidence/CHG-*/execution.log`
+- [x] Full audit trail in `evidence/CHG-*/execution.log` and `audit-verdict.json`
 - [x] Automatic rollback on health-check failure
 
 ### 3. Demo Quality
@@ -62,7 +64,7 @@
 - [x] `README.md` — project overview and quickstart
 - [x] `prd.md` — product requirements document
 - [x] `mvp.md` — MVP scope definition
-- [x] `plan.md` — build phases
+- [x] `plan.md` — build phases (Phases 0–5 completed)
 - [x] `agents.md` — agent roles and responsibilities
 - [x] `policy/change-policy.md` — full policy definition
 - [x] `blog.md` — #HowISwitch blog post (~700 words)
@@ -78,10 +80,11 @@
 
 ## Checklist Before Submitting
 
-- [ ] Replace `[REPO_LINK_PLACEHOLDER]` with actual GitHub URL
+- [x] Replace `[REPO_LINK_PLACEHOLDER]` with actual GitHub URL (`https://github.com/gnshx/switch-change-desk`)
 - [ ] Replace `[VIDEO_LINK_PLACEHOLDER]` with Loom / YouTube URL (≤ 3 min)
 - [ ] Replace `[BLOG_LINK_PLACEHOLDER]` with published blog URL
-- [ ] Run `make test` one final time and confirm `5/5 passed`
-- [ ] Run `make demo-happy` and `make demo-tamper` and confirm both PASS
-- [ ] Verify `git log --oneline` shows all 4 commits (phases 0–3)
+- [x] Run `make test` one final time and confirm `5/5 passed`
+- [x] Run `make demo-happy` and `make demo-tamper` and confirm both PASS
+- [x] Run `make ci` and verify all targets pass
+- [x] Verify `git log --oneline` shows all commits
 - [ ] Submit on the hackathon portal before the deadline

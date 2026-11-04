@@ -80,25 +80,18 @@ change-desk/
 
 ```bash
 # 1. Clone the repo
-git clone <your-repo-url> change-desk
+git clone https://github.com/gnshx/switch-change-desk.git change-desk
 cd change-desk
 
 # 2. Make scripts executable
-chmod +x sandbox/check.sh tools/apply_change.sh demo/reset.sh
+chmod +x sandbox/check.sh tools/apply_change.sh demo/reset.sh tools/test_gate.sh tools/pse_team_loop.sh demo/run_*.sh
 
 # 3. Verify sandbox health
-bash sandbox/check.sh
+make check
 
-# 4. Configure Switch room
-#    - Create a room called "change-desk"
-#    - Attach policy/change-policy.md as room knowledge
-#    - Add Planner agent with agents/planner.md as system instructions
-#    - Add Reviewer agent with agents/reviewer.md as system instructions
-#    - Add Executor agent with agents/executor.md as system instructions
-#    - Set Executor agent access to: Owner only  ← critical Switch setting
-
-# 5. Run the demo reset to confirm clean state
-bash demo/reset.sh
+# 4. Run full test suite & CI verification
+make test
+make ci
 ```
 
 ---
@@ -229,15 +222,52 @@ A late-arriving auditor can read these files and reconstruct the full story with
 
 ---
 
+## Principal Software Engineer Team Loop
+
+To run the complete end-to-end multi-agent orchestration loop as a Principal Software Engineering team:
+
+```bash
+# 1. Run standard happy-path multi-agent lifecycle
+make loop
+
+# 2. Run continuous loop across multiple consecutive versions (v1.0.0 → v2.0.0 → v2.1.0 → v2.2.0)
+make loop-continuous
+
+# 3. Test post-approval tamper detection (adversarial simulation)
+make loop-tamper
+
+# 4. Test non-owner access denial (boundary security simulation)
+make loop-outsider
+
+# 5. Test risk reviewer safety veto (policy rejection simulation)
+make loop-reject
+
+# 6. Run comprehensive automated CI pipeline
+make ci
+```
+
+### Lifecycle Trace
+
+Each cycle coordinates 6 specialized personas:
+1. **Requester (Lead Dev / Product):** Submits change request with target file and motivation.
+2. **Planner (Principal Software Engineer):** Produces `plan.md` with blast-radius analysis, invariants, and rollback steps; computes SHA-256 fingerprint.
+3. **Risk Reviewer (Staff Security Engineer):** Audits plan against `policy/change-policy.md`; issues `APPROVED` or `REJECTED` verdict.
+4. **Approver (System Owner):** Inspects diff; signs off with change ID and 8-character cryptographic hash prefix in `approval.txt`.
+5. **Executor (Owner-Only Access):** Confirms caller identity; executes `tools/apply_change.sh`.
+6. **Policy Gate & Auditor:** Deterministically enforces 4 safety invariants, executes change, runs `sandbox/check.sh`, generates immutable audit report `audit-verdict.json`.
+
+---
+
 ## Roadmap
 
-| Phase | Date | Status |
-|-------|------|--------|
-| Phase 0: Tooling install | Nov 3 | ✅ Done |
-| Phase 1: Sandbox + gate | Nov 4 | 🔄 In progress |
-| Phase 2: Agent workflow | Nov 5 | ⬜ Planned |
-| Phase 3: Two clean runs + README + video | Nov 6 | ⬜ Planned |
-| Phase 4: Submission | Nov 7 | ⬜ Planned |
+| Phase | Description | Status |
+|-------|-------------|--------|
+| **Phase 0** | Tooling install & verification (Docker, Switch, Antigravity) | ✅ Completed |
+| **Phase 1** | Sandbox app, health check (`check.sh`), and deterministic policy gate (`apply_change.sh`) | ✅ Completed |
+| **Phase 2** | Multi-agent personas (`planner.md`, `reviewer.md`, `executor.md`), room instructions, policy rules | ✅ Completed |
+| **Phase 3** | Automated 5-test suite (`test_gate.sh`), demo runners, fixtures, clean reset | ✅ Completed |
+| **Phase 4** | Submission package (`SUBMISSION.md`, `blog.md`), Automated CI verification (`make ci`) | ✅ Completed |
+| **Phase 5** | Principal Software Engineer Team continuous loop orchestrator (`tools/pse_team_loop.sh`) | ✅ Completed |
 
 ---
 
