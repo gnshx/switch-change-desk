@@ -54,15 +54,23 @@ You post a request
 
 ---
 
-## How to Compute the Hash Prefix
+## How to Approve a Change
+
+Use the human approval CLI in your terminal:
 
 ```bash
-sha256sum evidence/<change-id>/plan.md | cut -c1-8
+./tools/approve.sh <change-id>
 ```
 
----
+This tool:
+1. Displays the plan diff and reviewer verdict
+2. Verifies that the reviewer's recorded plan hash matches `plan.md`
+3. Asks for your `y/N` confirmation
+4. Computes the SHA-256 fingerprint
+5. Cryptographically signs an HMAC operator token in `evidence/<change-id>/approval.txt`
+6. Prints the exact line to paste into the Switch room
 
-## Approval Message Format
+You then post that output line in the room:
 
 ```
 APPROVED CHG-YYYYMMDD-NNN <first-8-chars-of-hash>

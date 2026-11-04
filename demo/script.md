@@ -55,11 +55,13 @@
 5. Run: `cat evidence/CHG-20261104-001/review.md`
 
 **Say:**
-> "I read both. I'm satisfied. I approve with the change ID and the first 8 characters of the plan's SHA-256."
+> "I read both. I'm satisfied. I run our local approval tool to inspect and sign the change."
 
 **Do:**
-6. Run: `sha256sum evidence/CHG-20261104-001/plan.md | cut -c1-8`
-7. Post in room: `APPROVED CHG-20261104-001 <hash>`
+6. Run: `./tools/approve.sh CHG-20261104-001`
+   - Show the CLI summary of the plan, reviewer verdict, and HMAC signature generation.
+   - Enter `y` to approve.
+7. Post in Switch room: `APPROVED CHG-20261104-001 <hash>`
 
 **Say:**
 > "The Executor, which only accepts my instructions, runs the policy gate."
@@ -103,17 +105,31 @@
 
 ---
 
-## Beat 5 — Auditor (2:15–2:30)
+## Beat 5 — Automatic Rollback (2:15–2:30)
 
 **Say:**
-> "Any late-arriving auditor can read the room history and the evidence folder to reconstruct the full story."
+> "What if a change passes review, but fails runtime health checks in production? Watch the gate catch the failure and automatically roll back."
 
 **Do:**
-1. Run: `ls evidence/CHG-20261104-001/`
-2. Run: `cat evidence/CHG-20261104-001/approval.txt`
+1. Run: `./demo/run_rollback_beat.sh`
+2. Show output: health check crashes → gate catches failure → restores `app.txt.backup` → sandbox preserved at `v1.0.0`.
 
 **Say:**
-> "Plan, review, approval, test log — all there. That's Change Desk."
+> "The bad change is completely rolled back to backup, with the failure trace preserved in the evidence folder."
+
+---
+
+## Beat 6 — Auditor & Evidence Trail (2:30–2:45)
+
+**Say:**
+> "Any late-arriving auditor can inspect the Switch room history and the evidence folder to see the complete, tamper-evident audit trail."
+
+**Do:**
+1. Run: `ls examples/evidence/CHG-DEMO-001/`
+2. Run: `cat examples/evidence/CHG-DEMO-001/approval.txt`
+
+**Say:**
+> "Plan, review, human HMAC signature, gate execution log, backup, and test results. That's Change Desk."
 
 ---
 

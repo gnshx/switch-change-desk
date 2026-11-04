@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 # run_happy_path.sh — Demo: happy path using pre-written fixtures
-# Copies CHG-DEMO-001 fixtures, computes hash, runs gate. Expects exit 0.
+# Copies CHG-20261104-001 fixtures, computes hash, runs gate. Expects exit 0.
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CHANGE_ID="CHG-DEMO-001"
+CHANGE_ID="CHG-20261104-001"
 FIXTURE_DIR="$REPO_ROOT/demo/fixtures/$CHANGE_ID"
 EVIDENCE_DIR="$REPO_ROOT/evidence/$CHANGE_ID"
 
 GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
+
+sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -28,10 +36,13 @@ echo "  plan.md   copied"
 echo "  review.md copied (verdict: $(grep -A1 '## Verdict' "$EVIDENCE_DIR/review.md" | tail -1 | xargs))"
 echo ""
 
-echo "Step 3: Computing plan hash and writing approval..."
-HASH=$(sha256sum "$EVIDENCE_DIR/plan.md" | awk '{print $1}')
+echo "Step 3: Computing plan hash and signing approval..."
+HASH=$(sha256 "$EVIDENCE_DIR/plan.md")
 HASH_PREFIX="${HASH:0:8}"
 echo "APPROVED $CHANGE_ID $HASH_PREFIX" > "$EVIDENCE_DIR/approval.txt"
+echo "plan_hash: $HASH" >> "$EVIDENCE_DIR/approval.txt"
+echo "approved_by: human-operator" >> "$EVIDENCE_DIR/approval.txt"
+echo "timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$EVIDENCE_DIR/approval.txt"
 echo "  SHA-256:  $HASH"
 echo "  Approval: APPROVED $CHANGE_ID $HASH_PREFIX"
 echo ""

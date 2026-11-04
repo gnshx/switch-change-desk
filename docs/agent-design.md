@@ -84,6 +84,9 @@ Writes `evidence/<change-id>/review.md` with the following schema:
 ## Verdict
 APPROVED | REJECTED
 
+## Plan Hash
+<sha256-hash-of-plan.md>
+
 ## Risks Identified
 - ...
 

@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
-# run_tamper_beat.sh — Demo: tamper beat
-# Copies fixture, approves with original hash, edits plan.md, then
-# runs gate with original hash → expects HASH MISMATCH (exit 1).
+# run_tamper_beat.sh — Demo: tamper beat using pre-written fixtures
+# Copies fixtures, writes approval, then tampers plan.md before running gate.
+# Expects gate to REFUSE with exit 1 and "HASH MISMATCH".
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CHANGE_ID="CHG-DEMO-002"
-FIXTURE_DIR="$REPO_ROOT/demo/fixtures/CHG-DEMO-001"
+CHANGE_ID="CHG-20261104-002"
+FIXTURE_DIR="$REPO_ROOT/demo/fixtures/CHG-20261104-001"
 EVIDENCE_DIR="$REPO_ROOT/evidence/$CHANGE_ID"
 
-GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'
+
+sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -25,55 +33,46 @@ echo ""
 echo "Step 2: Copying fixtures..."
 mkdir -p "$EVIDENCE_DIR"
 cp "$FIXTURE_DIR/plan.md"   "$EVIDENCE_DIR/plan.md"
-# Write a correct review for this change ID
-cat > "$EVIDENCE_DIR/review.md" << EOF
-# Review: $CHANGE_ID
+cp "$FIXTURE_DIR/review.md" "$EVIDENCE_DIR/review.md"
+sed -i "s/CHG-20261104-001/$CHANGE_ID/g" "$EVIDENCE_DIR/review.md"
 
-## Verdict
-APPROVED
-
-## Risks Identified
-- None identified
-
-## Conditions
-- None
-
-## Reviewer Note
-Plan is clear, scoped to sandbox/ only, and fully reversible.
-EOF
-
-PRE_TAMPER_HASH=$(sha256sum "$EVIDENCE_DIR/plan.md" | awk '{print $1}')
-PRE_TAMPER_PREFIX="${PRE_TAMPER_HASH:0:8}"
-echo "  Pre-tamper SHA-256: $PRE_TAMPER_HASH"
-echo "  Pre-tamper prefix:  $PRE_TAMPER_PREFIX"
+ORIGINAL_HASH=$(sha256 "$EVIDENCE_DIR/plan.md")
+ORIGINAL_PREFIX="${ORIGINAL_HASH:0:8}"
+echo "  Pre-tamper SHA-256: $ORIGINAL_HASH"
+echo "  Pre-tamper prefix:  $ORIGINAL_PREFIX"
 echo ""
 
 echo "Step 3: Writing approval with pre-tamper hash..."
-echo "APPROVED $CHANGE_ID $PRE_TAMPER_PREFIX" > "$EVIDENCE_DIR/approval.txt"
-echo "  Approval: APPROVED $CHANGE_ID $PRE_TAMPER_PREFIX"
+cat > "$EVIDENCE_DIR/approval.txt" << EOF
+APPROVED $CHANGE_ID $ORIGINAL_PREFIX
+plan_hash: $ORIGINAL_HASH
+approved_by: human-operator
+timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+echo "  Approval: APPROVED $CHANGE_ID $ORIGINAL_PREFIX"
 echo ""
 
-echo -e "${YELLOW}Step 4: TAMPERING — appending blank line to plan.md after approval...${NC}"
-echo "" >> "$EVIDENCE_DIR/plan.md"
-POST_TAMPER_HASH=$(sha256sum "$EVIDENCE_DIR/plan.md" | awk '{print $1}')
-echo "  Post-tamper SHA-256: $POST_TAMPER_HASH"
-echo "  Prefix now: ${POST_TAMPER_HASH:0:8} (was: $PRE_TAMPER_PREFIX)"
+echo "Step 4: TAMPERING — appending unauthorized line to plan.md after approval..."
+printf '\n# Malicious modification injected post-approval\n' >> "$EVIDENCE_DIR/plan.md"
+TAMPERED_HASH=$(sha256 "$EVIDENCE_DIR/plan.md")
+TAMPERED_PREFIX="${TAMPERED_HASH:0:8}"
+echo "  Post-tamper SHA-256: $TAMPERED_HASH"
+echo "  Prefix now: $TAMPERED_PREFIX (was: $ORIGINAL_PREFIX)"
 echo ""
 
 echo "Step 5: Running gate with ORIGINAL hash (expect HASH MISMATCH)..."
 echo ""
 GATE_EXIT=0
-"$REPO_ROOT/tools/apply_change.sh" "$CHANGE_ID" "$PRE_TAMPER_PREFIX" v2.0.0 || GATE_EXIT=$?
+"$REPO_ROOT/tools/apply_change.sh" "$CHANGE_ID" "$ORIGINAL_PREFIX" v2.0.0 || GATE_EXIT=$?
 echo ""
 
-if [[ "$GATE_EXIT" != "0" ]]; then
+if [[ "$GATE_EXIT" == "1" ]]; then
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${GREEN}  DEMO PASS — Gate correctly refused the tampered plan (exit $GATE_EXIT)${NC}"
+  echo -e "${GREEN}  DEMO PASS — Gate correctly refused the tampered plan (exit 1)${NC}"
   echo -e "${GREEN}  sandbox/app.txt unchanged: $(grep '^version' "$REPO_ROOT/sandbox/app.txt")${NC}"
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   exit 0
 else
-  echo -e "${RED}  DEMO FAIL — Gate returned exit 0 on tampered plan (expected 1)${NC}"
-  echo -e "${RED}  Hash check is broken!${NC}"
+  echo -e "${RED}  DEMO FAIL — Gate returned exit $GATE_EXIT (expected 1)${NC}"
   exit 1
 fi

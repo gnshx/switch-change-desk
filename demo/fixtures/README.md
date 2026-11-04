@@ -1,41 +1,29 @@
-# Demo Fixtures — CHG-DEMO-001
+# Demo Fixtures — CHG-20261104-001 / CHG-DEMO-001
 
-These are pre-written fixture files for the happy-path demo.
+These are pre-written fixture files for offline demo execution and regression testing.
 
-They let you run a clean, reliable demo even if the AI agents are offline or unavailable.
+They allow evaluators to verify the policy gate, tamper detection, and automatic rollback without needing live AI agents or Switch Console running.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `plan.md` | Pre-written plan for bumping v1.0.0 → v2.0.0 |
-| `review.md` | Pre-written APPROVED review |
-| `plan-hash.txt` | The SHA-256 of `plan.md` (do not modify plan.md or this will be wrong) |
+| `review.md` | Pre-written APPROVED review with cryptographically bound plan hash |
+| `plan-hash.txt` | The SHA-256 digest of `plan.md` |
 
-## How to Use
+## How to Run
 
-The `demo/run_happy_path.sh` and `demo/run_tamper_beat.sh` scripts copy these files automatically.
-
-You can also use them manually:
+Use the automated demo scripts:
 
 ```bash
-# Copy fixtures to evidence
-mkdir -p evidence/CHG-DEMO-001
-cp demo/fixtures/CHG-DEMO-001/plan.md evidence/CHG-DEMO-001/
-cp demo/fixtures/CHG-DEMO-001/review.md evidence/CHG-DEMO-001/
-
-# Get hash prefix
-HASH_PREFIX=$(cat demo/fixtures/CHG-DEMO-001/plan-hash.txt | cut -c1-8)
-echo "APPROVED CHG-DEMO-001 $HASH_PREFIX" > evidence/CHG-DEMO-001/approval.txt
-
-# Run gate
-./tools/apply_change.sh CHG-DEMO-001 "$HASH_PREFIX" v2.0.0
+make demo-happy      # Runs demo/run_happy_path.sh (happy path)
+make demo-tamper     # Runs demo/run_tamper_beat.sh (tamper detection)
+make demo-rollback   # Runs demo/run_rollback_beat.sh (automatic rollback)
 ```
 
-## ⚠️ Do Not Modify `plan.md`
-
-If you modify `plan.md`, recompute the hash:
+Or run the full 12-test regression suite:
 
 ```bash
-sha256sum demo/fixtures/CHG-DEMO-001/plan.md | awk '{print $1}' > demo/fixtures/CHG-DEMO-001/plan-hash.txt
+make test
 ```

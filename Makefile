@@ -1,31 +1,26 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # change-desk Makefile
-# Principal Software Engineer Team — Build, Test, Demo & CI Targets
+# Targets for running tests, demo fixtures, approval CLI, and offline simulation.
 # Default target: help
 # ─────────────────────────────────────────────────────────────────────────────
 
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-# Repo root is the directory containing this Makefile
 REPO_ROOT := $(shell pwd)
+CHANGE_ID ?= CHG-$(shell date +%Y%m%d)-001
 
-# Change ID for the live happy-path demo target
-DEMO_ID := CHG-$(shell date +%Y%m%d)-001
-
-# ─── Targets ──────────────────────────────────────────────────────────────────
-
-.PHONY: help check reset test demo-happy demo-tamper loop loop-tamper loop-outsider loop-reject loop-continuous ci clean
+.PHONY: help check reset test demo-happy demo-tamper demo-rollback approve sim ci clean
 
 ## help: Print all available targets with descriptions (default)
 help:
 	@echo ""
-	@echo "  change-desk — Principal Engineering targets"
+	@echo "  change-desk — Makefile targets"
 	@echo "  ──────────────────────────────────────────────────────────"
 	@grep -E '^## ' $(MAKEFILE_LIST) | sed 's/^## /  /'
 	@echo ""
 
-## check: Run the sandbox health check (sandbox/check.sh)
+## check: Run sandbox health check (sandbox/check.sh)
 check:
 	@bash $(REPO_ROOT)/sandbox/check.sh
 
@@ -33,43 +28,35 @@ check:
 reset:
 	@bash $(REPO_ROOT)/demo/reset.sh
 
-## test: Run the 5-test gate test suite (tools/test_gate.sh)
+## test: Run the 12-test policy gate regression suite (tools/test_gate.sh)
 test:
 	@bash $(REPO_ROOT)/tools/test_gate.sh
 
-## demo-happy: Run the happy-path fixture demo (uses CHG-DEMO-001)
+## demo-happy: Run happy-path offline fixture demo (demo/run_happy_path.sh)
 demo-happy:
 	@bash $(REPO_ROOT)/demo/run_happy_path.sh
 
-## demo-tamper: Run the tamper-beat demo (expects gate to reject tampered plan)
+## demo-tamper: Run tamper-beat offline fixture demo (demo/run_tamper_beat.sh)
 demo-tamper:
 	@bash $(REPO_ROOT)/demo/run_tamper_beat.sh
 
-## loop: Run full Principal Software Engineer team multi-agent lifecycle
-loop:
-	@bash $(REPO_ROOT)/tools/pse_team_loop.sh --happy
+## demo-rollback: Run automatic rollback beat demo (demo/run_rollback_beat.sh)
+demo-rollback:
+	@bash $(REPO_ROOT)/demo/run_rollback_beat.sh
 
-## loop-tamper: Run PSE team loop with post-approval tamper injection
-loop-tamper:
-	@bash $(REPO_ROOT)/tools/pse_team_loop.sh --tamper
+## approve: Run interactive human approval CLI (tools/approve.sh <id>)
+approve:
+	@bash $(REPO_ROOT)/tools/approve.sh $(CHANGE_ID)
 
-## loop-outsider: Run PSE team loop simulating non-owner access refusal
-loop-outsider:
-	@bash $(REPO_ROOT)/tools/pse_team_loop.sh --outsider
+## sim: Run offline simulation harness (tools/offline_sim.sh)
+sim:
+	@bash $(REPO_ROOT)/tools/offline_sim.sh --happy
 
-## loop-reject: Run PSE team loop simulating risk reviewer rejection
-loop-reject:
-	@bash $(REPO_ROOT)/tools/pse_team_loop.sh --reject
-
-## loop-continuous: Run continuous loop across multiple consecutive changes
-loop-continuous:
-	@bash $(REPO_ROOT)/tools/pse_team_loop.sh --loop 3
-
-## ci: Run entire validation suite (checks, tests, fixtures, and PSE loops)
-ci: check test demo-happy demo-tamper loop loop-tamper loop-outsider loop-reject
+## ci: Run entire offline regression & demo suite
+ci: check test demo-happy demo-tamper demo-rollback sim
 	@echo ""
-	@echo "  ★ ALL CI & POLICY GATE TARGETS PASSED ★"
+	@echo "  ★ ALL REGRESSION SUITE & DEMO FIXTURES PASSED ★"
 	@echo ""
 
-## clean: Alias for reset — same as 'make reset'
+## clean: Alias for reset
 clean: reset

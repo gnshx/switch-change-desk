@@ -1,0 +1,36 @@
+# switch-change-desk.template.yaml
+# One-step Switch room creation template for Change Desk
+# Compatible with Switch Console room import and CLI template creation
+
+version: 1
+name: change-desk
+description: "Human-in-the-loop change management with tamper-evident SHA-256 policy gate"
+
+knowledge:
+  - path: policy/change-policy.md
+    description: "Mandatory room rules, Change ID schemas, and gate verification invariants"
+
+instructions:
+  file: room-instructions.md
+
+agents:
+  - name: Planner
+    handle: planner
+    instructions: agents/planner.md
+    addressing: mention
+    role: member
+    description: "Drafts scoped execution and rollback plans in evidence/<change-id>/plan.md"
+
+  - name: Risk Reviewer
+    handle: reviewer
+    instructions: agents/reviewer.md
+    addressing: mention
+    role: member
+    description: "Critiques plans, binds review to plan hash, and issues APPROVED/REJECTED verdict"
+
+  - name: Executor
+    handle: executor
+    instructions: agents/executor.md
+    addressing: mention
+    role: owner-only
+    description: "Privileged agent restricted to room owner. Triggers tools/apply_change.sh upon human approval"

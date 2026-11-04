@@ -1,0 +1,66 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+apply_change.sh — Policy Gate
+Change ID:        CHG-20261104-001
+Hash prefix:      b574a815
+Target version:   v2.0.0
+Timestamp:        2026-11-04T10:30:05Z
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1/8] Validating Change ID format...
+  ✓ Change ID format valid
+
+[2/8] Checking replay protection ledger...
+  ✓ No prior execution detected
+
+[3/8] Validating target version format...
+  ✓ Target version format valid
+
+[4/8] Checking approval file...
+Approval content:
+  APPROVED CHG-20261104-001 b574a815
+  ✓ Approval ID matches
+  ✓ Human operator HMAC signature verified
+
+[5/8] Verifying plan hash...
+Actual SHA-256:   b574a8151f1bb6441cfe4a2e58399ef6382825db50b614b7879b93767cb24d0b
+Approved prefix:  b574a815
+Actual prefix:    b574a815
+  ✓ Plan hash matches
+
+[6/8] Checking reviewer verdict and plan binding...
+Verdict in review: APPROVED
+Review bound plan hash: b574a8151f1bb6441cfe4a2e58399ef6382825db50b614b7879b93767cb24d0b
+  ✓ Review cryptographically bound to current plan.md
+  ✓ Reviewer verdict: APPROVED
+
+[7/8] Validating target path and containment...
+  ✓ Target path is strictly contained inside sandbox/
+
+[8/8] Applying change and executing verification check...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ALL CHECKS PASSED — Applying change
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Backup saved: evidence/CHG-20261104-001/app.txt.backup
+Version changed: v1.0.0 → v2.0.0
+
+Running health check...
+
+=== Sandbox Health Check ===
+Timestamp: 2026-11-04T10:30:06Z
+Reading: sandbox/app.txt
+version: v2.0.0
+name: change-desk-sandbox
+status: running
+last_updated: 2026-11-04
+
+Version:  v2.0.0  ✓
+Format:   valid  ✓
+
+=== HEALTH CHECK PASSED ===
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXECUTION COMPLETE: CHG-20261104-001
+check.sh: PASSED
+Exit: 0 | Timestamp: 2026-11-04T10:30:06Z
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

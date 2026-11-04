@@ -1,282 +1,243 @@
 # Change Desk
 
-> **Give every AI-assisted change a paper trail: request → plan → review → human approval → execution → test evidence. Make it impossible to skip a step.**
+> **Give every AI-assisted change a tamper-evident paper trail: request → plan → review → human approval → execution → health check. Make skipping a step impossible at the gate.**
 
-Built for the **Switch Hackathon** using [Antigravity](https://antigravity.dev) and [Switch](https://switch.new).
+Built for the **Switch Hackathon** (Track 1: Best Business Workflow) using [Switch](https://github.com/sandbox-quantum/switch) and [Antigravity](https://antigravity.google).
 
 ---
 
 ## The Problem
 
-Production changes in AI-assisted teams are fast — but accountability is not. When an AI agent can apply a change with a single prompt, there is no native guarantee that the change was reviewed before execution, the person who approved it is known, or the plan that was approved is the plan that ran.
+Production changes in AI-assisted teams are fast, but accountability is fragile. When an AI agent can execute changes directly, three failure modes routinely occur:
+1. **Unreviewed changes:** An agent acts directly on a prompt without architectural critique or rollback planning.
+2. **Untracked approvals:** Changes are applied without a verifiable record of who approved what.
+3. **Plan drift & tampering:** The code that actually runs differs from the plan that was discussed and approved.
 
-A single unreviewed change can cost hours of rollback work and leave no audit trail.
+A single unreviewed change can lead to silent data corruption, broken downstream services, and hours of forensic debugging.
 
 ---
 
 ## Architecture
 
-```
-Requester ──► Switch room: change-desk ◄── Approver (owner)   Outsider (refused)
-                        │
-               ┌────────┴─────────┐
-            Planner          Risk Reviewer
-            plan.md           review.md
-               └────────┬─────────┘
-                   Executor (owner-only)
-                        │
-                apply_change.sh (policy gate)
-                        │
-               ┌────────┴─────────┐
-          Sandbox app          Evidence log
-          v1→v2                plan/review/approval/test
+The workflow is anchored inside a **Switch room** where specialized agents collaborate in view of the room owner. A deterministic local script (`tools/apply_change.sh`) acts as an invariant gate:
+
+```mermaid
+flowchart TD
+    subgraph SwitchRoom ["Switch Room: change-desk"]
+        Req["👔 Requester<br/>posts change request"] --> Plan["🧠 Planner Agent<br/>drafts plan.md + SHA-256"]
+        Plan --> Rev["🛡️ Risk Reviewer Agent<br/>audits against policy.md → APPROVED"]
+        Rev --> Appr["👤 Approver (Room Owner)<br/>signs via tools/approve.sh"]
+        Appr --> Exec["⚡ Executor Agent<br/>(configured as Owner-Only)"]
+    end
+
+    Exec --> Gate["🚪 Policy Gate (tools/apply_change.sh)<br/>Enforces 8 Invariants"]
+    Gate --> Sandbox["📦 Sandbox App (sandbox/app.txt)<br/>v1.0.0 → v2.0.0"]
+    Sandbox --> Check["🩺 Health Check (sandbox/check.sh)<br/>Validates runtime health"]
+    Check -->|Pass| Ledger["📋 Tamper-Evident Run Ledger<br/>evidence/ & .applied_ledger"]
+    Check -->|Fail| Rollback["⏪ Automatic Rollback<br/>Restores app.txt.backup"]
 ```
 
-**Two layers of protection:**
-- **Switch access setting** — executor is owner-only. Non-owner messages are refused before they reach the agent.
-- **`apply_change.sh` policy gate** — deterministic script that refuses unless approval ID matches, plan hash matches what was approved, reviewer verdict is `APPROVED`, and target path is inside `sandbox/`.
+### Two Layers of Defense
 
-> **Honest note:** This gives tamper-evidence in a sandbox context. It is not a security boundary against a hostile agent with direct filesystem access.
+1. **Switch Access Control (Room Layer):**
+   The Executor agent is **configured as owner-only** in Switch room settings. Messages from unauthorized participants or guests are rejected by Switch before reaching the agent.
+2. **Deterministic Policy Gate (Filesystem & Gate Layer):**
+   `tools/apply_change.sh` is a deterministic bash gate that refuses to apply any change unless all 8 invariants hold:
+   - Change ID strictly matches `CHG-YYYYMMDD-NNN`.
+   - Replay check passes (change has not already been executed).
+   - Target version adheres to SemVer (`vX.Y.Z`).
+   - Human approval file exists and references the matching Change ID.
+   - SHA-256 digest of `plan.md` matches the approved fingerprint prefix.
+   - Review file exists, verdict is `APPROVED`, and review's recorded `Plan Hash` matches the plan.
+   - If an operator key is present, human HMAC signature is verified.
+   - Target file is strictly contained inside `sandbox/` (no `..` traversal, no escaping symlinks).
 
 ---
 
-## Repo Layout
+## Honest Security Boundaries & Limitations
+
+We keep our security claims strictly grounded:
+
+- **Role separation is instructional:** In this setup, Planner, Reviewer, and Executor agents are separated by prompt instructions and Switch addressing roles. Any agent with direct filesystem write access could theoretically modify files directly. In production, this should be paired with OS-level container isolation per agent.
+- **Switch owner-only setting:** The Executor's access is configured as owner-only in Switch room settings. Until tested with multiple physical accounts, we claim this as "configured as owner-only," not "cryptographically verified against a hostile model."
+- **Sandbox containment:** `sandbox/app.txt` serves as a stand-in for infrastructure state, database schema, or microservice configuration. The gate protects the target path from directory traversal, but does not isolate arbitrary system commands.
+- **Evidence auditability:** Audit records in `evidence/` are tamper-evident via SHA-256 fingerprints and run ledgers, not immutable hardware storage.
+
+---
+
+## Repo Structure
 
 ```
-change-desk/
-  README.md                 ← you are here
-  prd.md                    ← product requirements document
-  mvp.md                    ← MVP scope and acceptance tests
-  plan.md                   ← build plan (phases, risks, rollback)
-  agents.md                 ← agent design and interaction diagram
-  room-instructions.md      ← paste into Switch room description
+switch-change-desk/
+  README.md                         ← you are here
+  switch-change-desk.template.yaml  ← One-step Switch room creation template
+  room-instructions.md              ← Workflow instructions pasted into Switch room
+  Makefile                          ← Convenience targets for tests, demos, and reset
   agents/
-    planner.md              ← Planner agent system instructions
-    reviewer.md             ← Risk Reviewer agent system instructions
-    executor.md             ← Executor agent system instructions
+    planner.md                      ← Planner agent instructions
+    reviewer.md                     ← Risk Reviewer agent instructions
+    executor.md                     ← Executor agent instructions (owner-only)
   policy/
-    change-policy.md        ← room knowledge file (attach to Switch room)
+    change-policy.md                ← Room knowledge file attached to Switch room
   sandbox/
-    app.txt                 ← the thing being changed (starts at v1.0.0)
-    check.sh                ← health check script
+    app.txt                         ← Target app state (stand-in for production config)
+    check.sh                        ← Health check script with format validation
   tools/
-    apply_change.sh         ← policy gate (the core tamper-evidence mechanism)
-  evidence/                 ← populated per change ID during runs
+    apply_change.sh                 ← Deterministic policy gate (8 invariant checks)
+    approve.sh                      ← Human approval CLI with HMAC signature generation
+    test_gate.sh                    ← 12-test automated regression suite
+    offline_sim.sh                  ← Offline simulation harness for CI/local testing
   demo/
-    script.md               ← 2.5-minute demo script
-    reset.sh                ← resets sandbox to v1.0.0 for a clean run
+    script.md                       ← 2.5-minute video recording script (5 beats)
+    reset.sh                        ← Idempotent cold-state reset script
+    run_happy_path.sh               ← Offline fixture demo: happy path (v1.0.0 → v2.0.0)
+    run_tamper_beat.sh              ← Offline fixture demo: tamper detection (hash mismatch)
+    run_rollback_beat.sh            ← Offline fixture demo: health check failure auto-rollback
+    fixtures/                       ← Pre-verified fixture files
+  examples/evidence/
+    CHG-DEMO-001/                   ← Committed complete audit trail of a real run
+  docs/
+    prd.md                          ← Product Requirements Document
+    mvp.md                          ← MVP Scope and Acceptance Criteria
+    plan.md                         ← Engineering Build Plan & Phase Tracking
+    agent-design.md                 ← Multi-agent interaction specification
+    SUBMISSION.md                   ← Hackathon submission package
+    blog.md                         ← #HowISwitch blog post draft
 ```
 
 ---
 
-## Setup (< 5 minutes)
+## Setup & Switch Reproducibility (< 5 minutes)
 
 ### Prerequisites
-- [Antigravity CLI](https://antigravity.dev) installed (`agy --version`)
-- [Switch Console](https://switch.new) installed and signed in
-- Bash (macOS/Linux) or WSL
+- [Antigravity](https://antigravity.google)
+- [Switch Console](https://github.com/sandbox-quantum/switch) installed and signed in
+- Bash (macOS/Linux or WSL) with `openssl`
 
-### Steps
+### Option A: One-Step Room Import (Recommended)
 
-```bash
-# 1. Clone the repo
-git clone https://github.com/gnshx/switch-change-desk.git change-desk
-cd change-desk
+1. Open **Switch Console**.
+2. Click **Import Room Template** and select [`switch-change-desk.template.yaml`](switch-change-desk.template.yaml).
+3. Switch automatically configures:
+   - Room name: `change-desk`
+   - Room knowledge: `policy/change-policy.md`
+   - Room instructions: `room-instructions.md`
+   - Planner agent (`@planner`): role `member`, addressing `mention`
+   - Risk Reviewer agent (`@reviewer`): role `member`, addressing `mention`
+   - Executor agent (`@executor`): role `owner-only`, addressing `mention`
 
-# 2. Make scripts executable
-chmod +x sandbox/check.sh tools/apply_change.sh demo/reset.sh tools/test_gate.sh tools/pse_team_loop.sh demo/run_*.sh
+### Option B: Manual Room Configuration
 
-# 3. Verify sandbox health
-make check
-
-# 4. Run full test suite & CI verification
-make test
-make ci
-```
+1. Create a room named `change-desk`.
+2. Attach `policy/change-policy.md` as **Room Knowledge**.
+3. Paste `room-instructions.md` into **Room Instructions**.
+4. Create 3 agents with their respective instruction files in `agents/`:
+   - **Planner:** instructions from `agents/planner.md`
+   - **Risk Reviewer:** instructions from `agents/reviewer.md`
+   - **Executor:** instructions from `agents/executor.md` → **Set Role to Owner-Only**.
 
 ---
 
 ## Running the Demo
 
-### Happy Path
+### Live Switch Room Walkthrough (Follows `demo/script.md`)
 
-```bash
-# Step 1: Post in Switch room
-# "Change request: CHG-20261104-001
-#  What: Bump sandbox app from v1.0.0 to v2.0.0
-#  Target: sandbox/app.txt"
-
-# Step 2: Wait for Planner → PLAN READY
-# Step 3: Wait for Reviewer → REVIEW READY — APPROVED
-
-# Step 4: Compute hash prefix
-sha256sum evidence/CHG-20261104-001/plan.md | cut -c1-8
-
-# Step 5: Post in Switch room
-# "APPROVED CHG-20261104-001 <hash>"
-
-# Step 6: Executor runs gate, announces EXECUTED
-# Step 7: Verify
-cat sandbox/app.txt           # → version: v2.0.0
-cat evidence/CHG-20261104-001/execution.log
-```
-
-### Tamper Beat (hash mismatch)
-
-```bash
-# After approval, edit plan.md
-echo "" >> evidence/CHG-20261104-001/plan.md
-
-# Try to run gate with original hash
-./tools/apply_change.sh CHG-20261104-001 <original-hash> v2.0.0
-# → GATE REFUSED: HASH MISMATCH
-```
-
-### Manual Gate Test (no agents needed)
-
-```bash
-# Reset to clean state
-bash demo/reset.sh
-
-# Create test evidence manually
-mkdir -p evidence/CHG-TEST-001
-
-cat > evidence/CHG-TEST-001/plan.md << 'EOF'
-# Plan: CHG-TEST-001
-
-## Objective
-Bump sandbox app from v1.0.0 to v2.0.0 to test the new feature set.
-
-## Steps
-1. Update version field in sandbox/app.txt from v1.0.0 to v2.0.0
-2. Run sandbox/check.sh to verify the change is valid
-
-## Rollback
-1. Restore sandbox/app.txt from evidence/CHG-TEST-001/app.txt.backup
-2. Run sandbox/check.sh to confirm rollback succeeded
-
-## Risk Rating
-LOW — only a version string in a sandbox file is changed; check.sh validates the result.
-EOF
-
-HASH=$(sha256sum evidence/CHG-TEST-001/plan.md | awk '{print $1}')
-HASH_PREFIX="${HASH:0:8}"
-echo "Plan hash prefix: $HASH_PREFIX"
-
-cat > evidence/CHG-TEST-001/review.md << 'EOF'
-# Review: CHG-TEST-001
-
-## Verdict
-APPROVED
-
-## Risks Identified
-- None identified
-
-## Conditions
-- None
-
-## Reviewer Note
-Plan is clear, scoped, and reversible; risk rating matches complexity.
-EOF
-
-echo "APPROVED CHG-TEST-001 $HASH_PREFIX" > evidence/CHG-TEST-001/approval.txt
-
-# Run the gate
-./tools/apply_change.sh CHG-TEST-001 "$HASH_PREFIX" v2.0.0
-```
+1. **Requester posts in Switch room:**
+   ```
+   Change request: CHG-20261104-001
+   What: Bump sandbox app from v1.0.0 to v2.0.0
+   Target: sandbox/app.txt
+   ```
+2. **Planner produces plan:**
+   Planner writes `evidence/CHG-20261104-001/plan.md` and announces:
+   `PLAN READY: CHG-20261104-001`
+3. **Risk Reviewer audits plan:**
+   Reviewer audits `plan.md`, binds its SHA-256 digest into `review.md`, and announces:
+   `REVIEW READY: CHG-20261104-001 — APPROVED`
+4. **Human reviews & signs approval:**
+   In your terminal, run:
+   ```bash
+   ./tools/approve.sh CHG-20261104-001
+   ```
+   This displays the plan and review, asks for `y/N` confirmation, computes the SHA-256 hash, signs an operator HMAC token, and outputs:
+   `APPROVED CHG-20261104-001 <hash-prefix>`
+5. **Approver replies in Switch room:**
+   Post the output line: `APPROVED CHG-20261104-001 <hash-prefix>`
+6. **Executor invokes gate:**
+   The Executor runs `apply_change.sh CHG-20261104-001 <hash-prefix> v2.0.0`.
+   The gate validates all 8 invariants, applies the change, runs `sandbox/check.sh`, and announces `EXECUTED`.
 
 ---
 
-## Switch Settings Used
+## Offline Gate Regression Suite (No Switch Required)
 
-| Setting | Value | Why |
-|---------|-------|-----|
-| Room name | `change-desk` | Identifies the workflow context |
-| Room knowledge | `policy/change-policy.md` | All agents see the rules |
-| Planner access | Anyone in room | Plans should be challengeable |
-| Reviewer access | Anyone in room | Reviews should be challengeable |
-| **Executor access** | **Owner only** | Execution is a privileged action |
-
-The owner-only setting on the Executor is the core Switch-central feature. It means a non-owner's instruction to the Executor is refused by Switch before the message is delivered — no code required for that specific guard.
-
----
-
-## Evidence Folder After a Run
-
-```
-evidence/CHG-20261104-001/
-  plan.md           ← what was planned (hash verified by gate)
-  review.md         ← reviewer's verdict
-  approval.txt      ← "APPROVED CHG-20261104-001 <hash>"
-  execution.log     ← gate checks, timestamps, check.sh output
-  app.txt.backup    ← sandbox state before the change
-```
-
-A late-arriving auditor can read these files and reconstruct the full story without asking anyone.
-
----
-
-## Demo Video
-
-[→ Watch the 2.5-minute demo](#) *(link added after recording)*
-
----
-
-## Principal Software Engineer Team Loop
-
-To run the complete end-to-end multi-agent orchestration loop as a Principal Software Engineering team:
+To ensure the deterministic gate and rollback mechanisms can be validated in CI and by evaluators offline, we provide a complete regression harness:
 
 ```bash
-# 1. Run standard happy-path multi-agent lifecycle
-make loop
+# 1. Run the comprehensive 12-test gate regression suite
+make test
 
-# 2. Run continuous loop across multiple consecutive versions (v1.0.0 → v2.0.0 → v2.1.0 → v2.2.0)
-make loop-continuous
+# 2. Run the offline happy path demo fixture (v1.0.0 → v2.0.0)
+make demo-happy
 
-# 3. Test post-approval tamper detection (adversarial simulation)
-make loop-tamper
+# 3. Run the tamper detection demo (post-approval edit is rejected)
+make demo-tamper
 
-# 4. Test non-owner access denial (boundary security simulation)
-make loop-outsider
+# 4. Run the automatic rollback demo (runtime check failure reverts app)
+make demo-rollback
 
-# 5. Test risk reviewer safety veto (policy rejection simulation)
-make loop-reject
+# 5. Run the offline simulation harness
+make sim
 
-# 6. Run comprehensive automated CI pipeline
+# 6. Run the entire offline CI suite
 make ci
 ```
 
-### Lifecycle Trace
+### 12 Regression Tests Implemented
 
-Each cycle coordinates 6 specialized personas:
-1. **Requester (Lead Dev / Product):** Submits change request with target file and motivation.
-2. **Planner (Principal Software Engineer):** Produces `plan.md` with blast-radius analysis, invariants, and rollback steps; computes SHA-256 fingerprint.
-3. **Risk Reviewer (Staff Security Engineer):** Audits plan against `policy/change-policy.md`; issues `APPROVED` or `REJECTED` verdict.
-4. **Approver (System Owner):** Inspects diff; signs off with change ID and 8-character cryptographic hash prefix in `approval.txt`.
-5. **Executor (Owner-Only Access):** Confirms caller identity; executes `tools/apply_change.sh`.
-6. **Policy Gate & Auditor:** Deterministically enforces 4 safety invariants, executes change, runs `sandbox/check.sh`, generates immutable audit report `audit-verdict.json`.
-
----
-
-## Roadmap
-
-| Phase | Description | Status |
-|-------|-------------|--------|
-| **Phase 0** | Tooling install & verification (Docker, Switch, Antigravity) | ✅ Completed |
-| **Phase 1** | Sandbox app, health check (`check.sh`), and deterministic policy gate (`apply_change.sh`) | ✅ Completed |
-| **Phase 2** | Multi-agent personas (`planner.md`, `reviewer.md`, `executor.md`), room instructions, policy rules | ✅ Completed |
-| **Phase 3** | Automated 5-test suite (`test_gate.sh`), demo runners, fixtures, clean reset | ✅ Completed |
-| **Phase 4** | Submission package (`SUBMISSION.md`, `blog.md`), Automated CI verification (`make ci`) | ✅ Completed |
-| **Phase 5** | Principal Software Engineer Team continuous loop orchestrator (`tools/pse_team_loop.sh`) | ✅ Completed |
+| # | Test Case | Expected Outcome |
+|---|---|---|
+| 1 | Happy path execution | Exits 0, `v1.0.0 → v2.0.0`, `check.sh PASSED` |
+| 2 | Post-approval plan tampering | Exits 1 with `HASH MISMATCH` |
+| 3 | Stale review / review-to-plan mismatch | Exits 1 with `REVIEW-TO-PLAN MISMATCH` |
+| 4 | Missing `review.md` | Exits 1 with `Review file not found` |
+| 5 | Reviewer verdict `REJECTED` | Exits 1 with `verdict is not APPROVED` |
+| 6 | Invalid Change ID format | Exits 1 with `INVALID CHANGE ID` |
+| 7 | Path traversal escape attempt | Exits 1 with containment violation |
+| 8 | Symlink escape outside sandbox | Exits 1 with symlink escape detected |
+| 9 | Replay attack (reusing approval) | Exits 1 with `REPLAY DETECTED` |
+| 10 | Missing `approval.txt` | Exits 1 with `Approval file not found` |
+| 11 | Approval Change ID mismatch | Exits 1 with `Approval ID mismatch` |
+| 12 | Health check failure auto-rollback | Exits 1, reverts sandbox to `v1.0.0` |
 
 ---
 
-## Contributing
+## Inspecting Sample Evidence
 
-This is a solo hackathon project. Issues and PRs welcome after submission.
+Judges and evaluators can inspect a complete, pre-recorded audit trail in [`examples/evidence/CHG-DEMO-001/`](examples/evidence/CHG-DEMO-001/):
+- `plan.md` — Scoped plan with rollback procedure and risk rating
+- `review.md` — Review verdict cryptographically bound to plan hash
+- `approval.txt` — Human approval record with HMAC signature
+- `execution.log` — Full deterministic gate execution trace
+- `app.txt.backup` — Preserved pre-change state
+- `audit-verdict.json` — Machine-readable compliance verdict
+
+---
+
+## Limitations & Next Steps
+
+### Current Limitations
+- **Instruction-based agent boundaries:** Planner and Reviewer are isolated by Switch instructions and addressing roles rather than hypervisor-level sandboxing.
+- **Local operator secret:** `tools/approve.sh` generates a local operator secret on the host machine (`~/.config/change-desk/operator.key`).
+- **Single-target sandbox:** The target resource is a simulated application state file in `sandbox/app.txt`.
+
+### Next Steps
+1. **Hardware Security Module (HSM) / WebAuthn:** Bind `tools/approve.sh` to a YubiKey or TouchID via WebAuthn/FIDO2.
+2. **Containerized Agent Sandboxing:** Run each Switch agent inside an ephemeral Docker container with read-only filesystem mounts.
+3. **CI/CD Integration:** Webhook bridge connecting Switch approval announcements directly to GitHub Actions deployment environments.
 
 ---
 
 ## License
 
-MIT
+MIT License. Built for the Switch Hackathon 2026.

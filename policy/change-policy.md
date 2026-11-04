@@ -64,25 +64,26 @@ The review must be written to `evidence/<change-id>/review.md` and contain:
 # Review: <change-id>
 ## Verdict
 APPROVED   ← or REJECTED (this exact word on its own line)
+## Plan Hash
+<sha256-hash-of-plan.md>
 ## Risks Identified
 ## Conditions
 ## Reviewer Note
 ```
 
+The review is cryptographically bound to the plan via `## Plan Hash`. If the plan is modified after review, the gate will refuse execution.
+
 ---
 
 ## Approval Format
 
-The approver must post this exact format in the room:
+The approver signs the approval locally using `tools/approve.sh <change-id>`. This verifies the plan and review, computes the SHA-256 fingerprint, signs the approval using a local human key, and produces:
 
 ```
 APPROVED <change-id> <first-8-or-more-chars-of-sha256-of-plan.md>
 ```
 
-The hash prefix is computed by:
-```bash
-sha256sum evidence/<change-id>/plan.md | cut -c1-8
-```
+The approver then posts this exact line in the Switch room to authorize the Executor.
 
 ---
 
@@ -107,12 +108,13 @@ The gate script refuses any target path outside `sandbox/`.
 
 ---
 
-## Honesty Notes
+## Honesty Notes & Security Boundaries
 
-- **Switch access control** (owner-only executor) is a behavioral guard. It prevents accidental instruction from non-owners in normal use.
-- **`apply_change.sh`** is a deterministic code guard. It enforces hash + review + approval checks regardless of who calls it.
-- Neither guard is a security boundary against a hostile agent with direct filesystem access.
-- The evidence log is append-only by convention, not by technical enforcement.
+- **Role separation is behavioral:** Planner, reviewer, and executor are separated by instruction only in this configuration. Any agent with direct filesystem access could write any file. A production deployment requires OS-level process isolation and distinct sandbox write permissions per agent.
+- **Switch access control** (owner-only executor) is configured as owner-only in Switch room settings. It prevents non-owners from addressing the executor in normal room interaction.
+- **`apply_change.sh`** is a deterministic code gate. It enforces hash integrity, review-to-plan binding, human signature verification, replay protection, and sandbox containment regardless of agent prompting.
+- **`approve.sh` binds approval to a human:** Generates an HMAC signature using a local operator secret outside agent access so agents cannot forge valid approvals.
+- The evidence log is append-only by convention and tracked by a run ledger, not by an immutable hardware ledger.
 
 ---
 

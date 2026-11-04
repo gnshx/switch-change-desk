@@ -22,6 +22,9 @@ Use this exact schema:
 ## Verdict
 APPROVED
 
+## Plan Hash
+<sha256-hash-of-plan.md>
+
 ## Risks Identified
 - Risk 1
 - Risk 2 (or "None identified" if truly none)
