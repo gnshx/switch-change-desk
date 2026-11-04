@@ -1,78 +1,87 @@
-# Change Desk — Submission
+# SUBMISSION.md — Change Desk Hackathon Submission
 
-**Hackathon:** Switch Hackathon  
-**Track:** Main + Wispr Flow side track + #HowISwitch blog  
-**Submitted by:** [your name]  
-**Date:** 2026-11-07
+## Project
 
----
-
-## Project Summary
-
-**Name:** Change Desk  
-**Tagline:** Every AI-assisted change, with a full paper trail. Plan → Review → Approve → Execute → Evidence.  
-**Repo:** [https://github.com/YOUR_USERNAME/switch-change-desk](#) ← update  
-**Video:** [YouTube / Loom link](#) ← update after recording  
-**Blog:** [link to #HowISwitch post](#) ← update  
-**Wispr Flow screenshot:** `demo/wispr-flow-screenshot.png` ← add before submitting
+| Field | Value |
+|-------|-------|
+| **Project name** | Change Desk |
+| **One-line description** | A three-agent AI change-management system that enforces tamper-evident, human-approved changes via a SHA-256 policy gate before anything touches infrastructure. |
+| **Track** | #HowISwitch |
 
 ---
 
 ## Switch Features Used
 
-| Feature | How Used |
-|---------|---------|
-| **Agent access setting: Owner only** | Executor agent is locked to room owner. Non-owner messages are refused by Switch before delivery. |
-| **Room knowledge** | `policy/change-policy.md` is attached to the room. All agents see the rules without being re-prompted. |
-| **Agent system instructions** | Each agent (`planner.md`, `reviewer.md`, `executor.md`) has a dedicated instruction file loaded as its system prompt. |
-| **Room history** | Auditor can read the room to reconstruct the full story. |
+| Feature | Setting / Location | How it's used |
+|---------|-------------------|---------------|
+| **Owner-only executor** | Room member role → `owner` | Restricts who can invoke the gate (`tools/apply_change.sh`); planner/reviewer agents cannot call it |
+| **Room knowledge** | Room settings → Knowledge files | `policy/change-policy.md` and `agents.md` loaded so every agent knows the protocol without re-prompting |
+| **Agent instructions** | Room settings → Agent instructions | Per-role instruction files (`agents/planner.md`, `agents/reviewer.md`, `agents/executor.md`) define each agent's responsibilities and output schema |
+| **Room instructions** | Room settings → Room instructions | `room-instructions.md` sets the overall workflow context for all participants |
 
 ---
 
-## Judging Criteria — Self Assessment
+## Links
 
-| Criterion | Score (self) | Evidence |
-|-----------|-------------|---------|
-| **Use of Switch** | ★★★★★ | Owner-only executor is the core feature; exact setting documented in README |
-| **Technical execution** | ★★★★★ | Judge can reproduce in ≤ 10 min from README; gate tested with 5 cases |
-| **Creativity and impact** | ★★★★☆ | Opens with real cost of unreviewed changes; shows "no" paths prominently |
-| **Presentation** | ★★★★☆ | Architecture diagram, tight README, 2.5-min video |
-| **Wispr Flow side track** | ★★★★☆ | Used for dictating prompts, instructions, and README (screenshot saved) |
+| Resource | URL |
+|----------|-----|
+| **Repo** | `[REPO_LINK_PLACEHOLDER]` |
+| **Demo video** | `[VIDEO_LINK_PLACEHOLDER]` |
+| **Blog post** | `[BLOG_LINK_PLACEHOLDER]` |
 
 ---
 
-## Submission Checklist
+## Judging Criteria Self-Assessment
 
-### Code
-- [ ] All scripts executable (`chmod +x`)
-- [ ] `demo/reset.sh` runs clean
-- [ ] `tools/test_gate.sh` — all 5 tests PASS
-- [ ] `demo/run_happy_path.sh` — exits 0
-- [ ] `demo/run_tamper_beat.sh` — exits 0 (gate refused as expected)
-- [ ] Evidence folder empty (no test artifacts)
-- [ ] `.gitignore` excludes CHG-* evidence dirs
+### 1. Use of Switch
+- [x] Uses Switch rooms as the coordination layer for multi-agent workflow
+- [x] Uses room knowledge to share policy documents across agents
+- [x] Uses owner-only restriction to enforce executor identity
+- [x] Uses per-role agent instructions to specialize agent behavior
+- [x] `room-instructions.md` documents Switch setup for reproducibility
 
-### Documentation
-- [ ] `README.md` is self-contained (no broken links, no placeholder text)
-- [ ] Video link added to README
-- [ ] Switch settings section accurate
-- [ ] Architecture diagram renders correctly
-- [ ] Exact `sha256sum` command shown for hash computation
+### 2. Technical Implementation
+- [x] `tools/apply_change.sh` — 4-check policy gate with tamper evidence
+- [x] `tools/test_gate.sh` — 5 automated tests; all pass (`5/5`)
+- [x] `demo/run_happy_path.sh` — offline fixture demo, verified PASS
+- [x] `demo/run_tamper_beat.sh` — tamper detection demo, verified PASS
+- [x] `Makefile` — `make test`, `make demo-happy`, `make demo-tamper`, `make check`, `make reset`
+- [x] `.gitignore` — evidence run dirs excluded, .gitkeep preserved
+- [x] SHA-256 hash stored in `plan-hash.txt` and verified at gate time
+- [x] Full audit trail in `evidence/CHG-*/execution.log`
+- [x] Automatic rollback on health-check failure
 
-### Demo
-- [ ] Two clean runs recorded
-- [ ] Tamper beat: HASH MISMATCH shown clearly on screen
-- [ ] Outsider beat: shown or explicitly skipped with honest note
-- [ ] Auditor beat: `ls evidence/` and `cat approval.txt` on screen
-- [ ] Video ≤ 2:30
+### 3. Demo Quality
+- [x] `demo/fixtures/CHG-DEMO-001/` — pre-written fixtures for offline reliability
+- [x] `demo/script.md` — step-by-step demo walkthrough
+- [x] `demo/reset.sh` — idempotent reset before every demo
+- [x] Happy path shows version bump v1.0.0 → v2.0.0 with health check
+- [x] Tamper beat shows clear `HASH MISMATCH` rejection with both hashes printed
 
-### Side tracks
-- [ ] Wispr Flow screenshot saved as `demo/wispr-flow-screenshot.png`
-- [ ] Blog post published
-- [ ] #HowISwitch post published
+### 4. Documentation
+- [x] `README.md` — project overview and quickstart
+- [x] `prd.md` — product requirements document
+- [x] `mvp.md` — MVP scope definition
+- [x] `plan.md` — build phases
+- [x] `agents.md` — agent roles and responsibilities
+- [x] `policy/change-policy.md` — full policy definition
+- [x] `blog.md` — #HowISwitch blog post (~700 words)
+- [x] `demo/fixtures/README.md` — fixture documentation
 
-### Final git
-- [ ] All files committed
-- [ ] `git log --oneline` shows clean phase commits
-- [ ] Pushed to public GitHub repo
-- [ ] Repo URL added to submission form
+### 5. Originality / Insight
+- [x] SHA-256 tamper evidence on the plan file (the core insight)
+- [x] Separation of proposer, reviewer, and executor into distinct agent roles
+- [x] Policy gate is stateless and agent-agnostic — works with any LLM
+- [x] Reset/fixture pattern solves agentic repeatability problem
+
+---
+
+## Checklist Before Submitting
+
+- [ ] Replace `[REPO_LINK_PLACEHOLDER]` with actual GitHub URL
+- [ ] Replace `[VIDEO_LINK_PLACEHOLDER]` with Loom / YouTube URL (≤ 3 min)
+- [ ] Replace `[BLOG_LINK_PLACEHOLDER]` with published blog URL
+- [ ] Run `make test` one final time and confirm `5/5 passed`
+- [ ] Run `make demo-happy` and `make demo-tamper` and confirm both PASS
+- [ ] Verify `git log --oneline` shows all 4 commits (phases 0–3)
+- [ ] Submit on the hackathon portal before the deadline

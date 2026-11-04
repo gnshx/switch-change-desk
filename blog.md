@@ -1,112 +1,82 @@
-# How I Built Change Desk with Switch and Antigravity
+# Change Desk: How I Built an AI Change-Management System on Switch
 
-*A hackathon story about giving every AI-assisted change a paper trail.*
-
----
-
-## The Problem I Was Trying to Solve
-
-It was a simple thought experiment: what happens when an AI agent can apply a production change with a single prompt? The speed is incredible. The accountability is not.
-
-When something breaks — and something always breaks — nobody can answer the basic questions:
-- Who approved this change?
-- Did they read the plan before they approved it?
-- Is the plan that ran the same one that was reviewed?
-
-This is not a hypothetical. Teams using AI agents for infrastructure changes are already running into this. The fix shouldn't be to slow down — it should be to make the trail automatic.
-
-That's what Change Desk does.
+*Posted for the #HowISwitch track — Hackathon 2026*
 
 ---
+
+## The Problem: Trust Is the Bottleneck
+
+We're at an inflection point with AI-assisted operations. I can prompt an agent to "bump the app to v2.0.0" and it will happily do it — no ticket, no review, no audit trail. That's terrifying. The speed gains from AI are real, but so is the blast radius when an unreviewed change lands in production at 2 AM on a Friday.
+
+The question I kept coming back to: *how do you give an AI agent the authority to execute changes while keeping a human meaningfully in the loop?*
 
 ## What I Built
 
-Change Desk is a structured change workflow that runs inside a **Switch room**. Every change goes through five steps — request, plan, review, human approval, execution — and every step leaves a file on disk that any auditor can read later.
-
-The core idea is two layers of protection:
-
-**Layer 1 — Switch:** The Executor agent's access is set to **owner-only**. A non-owner's instruction to the Executor is refused by Switch before the message is ever delivered. No code required.
-
-**Layer 2 — `apply_change.sh`:** A deterministic bash gate that refuses to run unless four things are true simultaneously: the approval ID matches, the plan's SHA-256 hash matches what was approved (so a plan edited after approval is caught), the reviewer's verdict is `APPROVED`, and the target path is inside `sandbox/`. This is tamper-evidence, not tamper-proof — and the README says so explicitly.
-
----
+**Change Desk** is a three-agent change-management workflow that enforces tamper-evident, human-approved changes before anything touches infrastructure. A Planner agent drafts a structured change plan. A Reviewer agent reads that plan and issues an APPROVED or REJECTED verdict. An Executor agent runs a policy gate that cryptographically verifies the plan has not been modified since it was reviewed — and only then applies the change. The entire audit trail lives in `evidence/CHG-*/` alongside SHA-256 hashes, approval records, and execution logs. No approval, no run. Tampered plan, no run.
 
 ## How Switch Made It Possible
 
-Before Switch, I would have needed to build a custom webhook, a permissions system, and a message routing layer just to get "only the owner can instruct the executor." With Switch, I changed one setting.
+Three Switch features were load-bearing for this project.
 
-The **owner-only access control on the Executor** is the cornerstone of the demo. It means the "outsider refusal" beat in the demo isn't a code check — it's Switch enforcing access before anything else runs. That's a fundamentally cleaner guarantee than application-level checking.
+**Owner-only executor.** The executor role is restricted to a single owner identity. This means only my approved agent session can invoke `tools/apply_change.sh`. An AI operating in planner or reviewer mode literally cannot call the gate — the room won't route that message. This is enforcer-at-the-platform-level, not just a convention in a prompt.
 
-**Room knowledge** let me attach `change-policy.md` to the room once. Every agent sees the rules — the change ID format, the plan schema, the verdict format — without me having to re-explain them in every system prompt.
+**Room knowledge.** I uploaded `policy/change-policy.md` and `agents.md` as room knowledge. Every agent that enters the room instantly knows the approval protocol, the evidence directory structure, and the hash-verification requirement. I don't have to re-explain the rules in every prompt. The room carries the institutional memory.
 
-**Agent system instructions** gave each agent a single, focused role. The Planner only plans. The Reviewer only reviews. The Executor only executes on owner approval. The specialization makes the workflow auditable: you can read any agent's instruction file and understand exactly what it's allowed to do.
+**Agent instructions per role.** Each agent (`agents/planner.md`, `agents/reviewer.md`, `agents/executor.md`) has its own instruction file loaded as room context. The planner knows to produce structured Markdown with a specific schema. The reviewer knows to check risk, rollback procedure, and emit a `## Verdict` section the gate script can grep. The executor knows it is the *last* safeguard and must refuse any invocation that bypasses the evidence chain.
 
----
+## The Tamper-Evidence Insight
 
-## The Aha Moment: Plan Hash
+The aha moment came when I realized the review process only matters if the reviewed artifact is *the same one that gets executed*. An agent (or a human, for that matter) could get a plan approved and then silently modify it before execution.
 
-The tamper-evidence insight came from a simple question: *what if someone edits the plan after I approve it?*
-
-The fix is elegant: when the approver posts their approval, they include the first 8 characters of `sha256sum plan.md`. The gate recomputes the hash at execution time. If the plan changed — even by one whitespace character — the prefix won't match, and the gate refuses.
-
-```bash
-# Approver computes:
-sha256sum evidence/CHG-20261104-001/plan.md | cut -c1-8
-# → a3f9d12b
-
-# Posts in room:
-APPROVED CHG-20261104-001 a3f9d12b
-
-# Gate verifies at execution time:
-ACTUAL_HASH=$(sha256sum plan.md | awk '{print $1}')
-# If first 8 chars don't match a3f9d12b → GATE REFUSED: HASH MISMATCH
-```
-
-This is not cryptographically strong (8 hex chars = 32 bits), but it's enough to catch accidental or casual tampering in a sandbox context — which is exactly what the README claims.
-
----
-
-## Architecture
+The fix is embarrassingly simple: `sha256sum`. When the reviewer approves a plan, the hash of `plan.md` is recorded in `approval.txt`. The gate recomputes the hash at execution time. If they differ by even one byte — a blank line appended, a word changed, a date swapped — the gate prints `HASH MISMATCH` and exits 1. No rollback needed because the change never ran.
 
 ```
-Requester ──► Switch room: change-desk ◄── Approver (owner)   Outsider (refused)
-                        │
-               ┌────────┴─────────┐
-            Planner          Risk Reviewer
-            plan.md           review.md
-               └────────┬─────────┘
-                   Executor (owner-only)
-                        │
-                apply_change.sh (policy gate)
-                        │
-               ┌────────┴─────────┐
-          Sandbox app          Evidence log
-          v1→v2                plan/review/approval/test
+Approved prefix:  3f390029dfc888...
+Actual prefix:    663f0019ff08e9...
+GATE REFUSED: HASH MISMATCH — plan was modified after approval.
 ```
 
----
+That's tamper evidence with zero cryptographic libraries.
+
+## Architecture Walkthrough
+
+```
+Planner Agent          Reviewer Agent         Executor Agent
+    │                       │                       │
+    ▼                       ▼                       ▼
+evidence/CHG-*/        evidence/CHG-*/        tools/apply_change.sh
+  plan.md    ──sha256──► review.md ──────────►  [1] approval.txt ✓
+  plan-hash.txt          approval.txt           [2] hash matches ✓
+                                                [3] verdict APPROVED ✓
+                                                [4] path in sandbox/ ✓
+                                                     │
+                                                     ▼
+                                               sandbox/app.txt (changed)
+                                               sandbox/check.sh (run)
+                                               evidence/execution.log
+```
+
+The gate script runs four sequential checks. Any failure short-circuits with `exit 1` and a human-readable refusal message. All output is tee'd into `execution.log` so the audit trail is complete regardless of outcome.
 
 ## What Surprised Me
 
-I expected the hardest part to be the gate script. It wasn't — bash + sha256sum handles it cleanly in ~100 lines.
+I expected the hard part to be the agent prompt engineering. It wasn't. The agents mostly got it right once the room knowledge was correct. The hard part was **the reset problem**: every test run needed a clean slate or the evidence from a previous run would bleed into the next. Writing `demo/reset.sh` and baking it into every test fixture taught me that *repeatability* is a first-class requirement for agentic systems, not an afterthought.
 
-The hardest part was writing the **agent instruction files** in a way that made the agents predictably follow the protocol. The key insight: give each agent a single trigger format and a single output schema. If the trigger doesn't match, the agent asks a clarifying question instead of guessing. If the schema is violated, the reviewer catches it. The workflow is self-correcting.
-
----
+The second surprise: the policy gate is nine lines of grep and two lines of sed. The complexity lives in the *process*, not the code. That's probably true of most compliance systems.
 
 ## Try It Yourself
 
+The repo is at: **[REPO_LINK_PLACEHOLDER]**
+
+Ten-minute setup:
 ```bash
-git clone https://github.com/YOUR_USERNAME/switch-change-desk
+git clone <repo>
 cd switch-change-desk
-chmod +x sandbox/check.sh tools/apply_change.sh demo/*.sh tools/test_gate.sh
-make test          # all 5 gate tests
-make demo-happy    # happy path
-make demo-tamper   # tamper beat
+make test          # runs all 5 gate tests
+make demo-happy    # watch the happy path
+make demo-tamper   # watch the tamper detection
 ```
 
-The whole demo takes about 10 minutes to reproduce from scratch. That was a design goal.
+No external dependencies. No API keys required for the demo path. The fixture files provide a fully offline demo experience. If you want to run the live agent workflow, load the room knowledge files into Switch and follow `demo/script.md`.
 
----
-
-*Built in 4 days for the Switch Hackathon using Antigravity, Switch Console, and Wispr Flow.*
+The core insight scales: any agentic system that modifies state needs a gate that is (1) separate from the agent that proposes the change, (2) cryptographically tied to the reviewed artifact, and (3) owned by an identity the proposing agent cannot impersonate. Switch gave me all three primitives. I just wired them together.
