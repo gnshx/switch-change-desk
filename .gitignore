@@ -1,0 +1,16 @@
+.DS_Store
+*.swp
+*.swo
+*~
+__pycache__/
+*.pyc
+*.backup
+
+# Evidence run artifacts — keep .gitkeep, ignore per-change dirs
+evidence/CHG-*/
+evidence/CHG_*/
+
+# Test run artifacts
+evidence/*-TEST-*/
+evidence/*-TAMPER-*/
+evidence/*-DEMO-*/
