@@ -10,7 +10,7 @@ SHELL := /usr/bin/env bash
 REPO_ROOT := $(shell pwd)
 CHANGE_ID ?= CHG-$(shell date +%Y%m%d)-001
 
-.PHONY: help check reset test demo-happy demo-tamper demo-rollback approve sim ci clean
+.PHONY: help check reset test demo-happy demo-tamper demo-rollback approve sim ci template clean
 
 ## help: Print all available targets with descriptions (default)
 help:
@@ -57,6 +57,10 @@ ci: check test demo-happy demo-tamper demo-rollback sim
 	@echo ""
 	@echo "  ★ ALL REGRESSION SUITE & DEMO FIXTURES PASSED ★"
 	@echo ""
+
+## template: Regenerate switch-change-desk.template.yaml from agents/*.md
+template:
+	@python3 $(REPO_ROOT)/tools/build_template.py
 
 ## clean: Alias for reset
 clean: reset
