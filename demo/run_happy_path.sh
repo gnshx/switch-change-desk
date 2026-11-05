@@ -36,15 +36,12 @@ echo "  plan.md   copied"
 echo "  review.md copied (verdict: $(grep -A1 '## Verdict' "$EVIDENCE_DIR/review.md" | tail -1 | xargs))"
 echo ""
 
-echo "Step 3: Computing plan hash and signing approval..."
+echo "Step 3: Signing human approval with operator key..."
+bash "$REPO_ROOT/tools/approve.sh" "$CHANGE_ID" "v2.0.0" --yes > /dev/null
 HASH=$(sha256 "$EVIDENCE_DIR/plan.md")
 HASH_PREFIX="${HASH:0:8}"
-echo "APPROVED $CHANGE_ID $HASH_PREFIX" > "$EVIDENCE_DIR/approval.txt"
-echo "plan_hash: $HASH" >> "$EVIDENCE_DIR/approval.txt"
-echo "approved_by: human-operator" >> "$EVIDENCE_DIR/approval.txt"
-echo "timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$EVIDENCE_DIR/approval.txt"
 echo "  SHA-256:  $HASH"
-echo "  Approval: APPROVED $CHANGE_ID $HASH_PREFIX"
+echo "  Approval: APPROVED $CHANGE_ID $HASH_PREFIX (signed with operator HMAC)"
 echo ""
 
 echo "Step 4: Running policy gate..."

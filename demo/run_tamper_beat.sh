@@ -42,14 +42,9 @@ echo "  Pre-tamper SHA-256: $ORIGINAL_HASH"
 echo "  Pre-tamper prefix:  $ORIGINAL_PREFIX"
 echo ""
 
-echo "Step 3: Writing approval with pre-tamper hash..."
-cat > "$EVIDENCE_DIR/approval.txt" << EOF
-APPROVED $CHANGE_ID $ORIGINAL_PREFIX
-plan_hash: $ORIGINAL_HASH
-approved_by: human-operator
-timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-EOF
-echo "  Approval: APPROVED $CHANGE_ID $ORIGINAL_PREFIX"
+echo "Step 3: Signing approval for pre-tamper plan with operator HMAC..."
+bash "$REPO_ROOT/tools/approve.sh" "$CHANGE_ID" "v2.0.0" --yes > /dev/null
+echo "  Approval: APPROVED $CHANGE_ID $ORIGINAL_PREFIX (signed)"
 echo ""
 
 echo "Step 4: TAMPERING — appending unauthorized line to plan.md after approval..."

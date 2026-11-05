@@ -33,6 +33,7 @@ LOW | MEDIUM | HIGH — one line of reasoning.
 
 ## Rules
 - Write ONLY to `evidence/<change-id>/plan.md`.
+- Compute the plan hash by executing `./tools/hash_plan.sh <change-id>` — never type or guess a hash.
 - Do NOT touch `sandbox/`, `review.md`, or `approval.txt`.
 - Do NOT apply any change to the running system.
 - After writing, announce in the room: `PLAN READY: <change-id>`

@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
-# tools/test_gate.sh — Comprehensive 12-test regression suite for policy gate
+# tools/test_gate.sh — Comprehensive 20-test regression suite for policy gate
 #
-# Tests:
+# Tests all 8 deterministic safety invariants and edge cases:
 #   1. Happy path                 — gate exits 0, version applied, check.sh passes
 #   2. Tamper detection           — plan modified after approval exits 1 (HASH MISMATCH)
-#   3. Review-to-Plan binding     — review plan hash mismatch exits 1 (REVIEW-TO-PLAN MISMATCH)
-#   4. Missing review             — review.md absent exits 1
-#   5. Reviewer verdict REJECTED  — verdict not APPROVED exits 1
-#   6. Invalid Change ID format   — malformed change ID exits 1
-#   7. Path traversal attempt     — path traversal escaping sandbox exits 1
-#   8. Symlink escape attempt     — escaping symlink in sandbox exits 1
-#   9. Replay prevention          — reusing an approval for a second run exits 1
-#  10. Missing approval file      — approval.txt absent exits 1
-#  11. Approval ID mismatch       — approval.txt with mismatched change ID exits 1
-#  12. Automatic rollback         — check.sh failure reverts version exits 1
+#   3. Full hash mismatch         — prefix matches but full 64-hex differs exits 1
+#   4. Unsigned approval          — missing hmac_sig / plan_hash fails closed exits 1
+#   5. Invalid HMAC signature     — forged or corrupted signature exits 1
+#   6. Version mismatch           — signed version differs from target version exits 1
+#   7. Short hash prefix          — prefix under 8 hex chars exits 1 immediately
+#   8. Malformed Change ID        — path traversal ID (../../x) exits 1 without creating files
+#   9. Missing approval file      — approval.txt absent exits 1
+#  10. Approval ID mismatch       — approval.txt with mismatched change ID exits 1
+#  11. Missing review             — review.md absent exits 1
+#  12. Reviewer verdict REJECTED  — verdict not APPROVED exits 1
+#  13. Missing review Plan Hash   — review.md without ## Plan Hash exits 1
+#  14. Malformed review hash      — non-64-hex review hash exits 1
+#  15. Stale review binding       — review conducted on different plan hash exits 1
+#  16. Dynamic path traversal     — target file containing '..' escapes sandbox exits 1
+#  17. Symlink escape attempt     — symlink escaping sandbox exits 1
+#  18. Replay prevention          — duplicate run of same Change ID exits 1
+#  19. Automatic rollback         — check.sh failure reverts state to v1.0.0 exits 1
+#  20. Clean log output           — execution.log strips ANSI escape sequences
 #
 # Resets sandbox between tests via demo/reset.sh.
-# Final summary: N/12 passed. Exits 0 if all pass, 1 if any fail.
+# Final summary: N/20 passed. Exits 0 if all pass, 1 if any fail.
 
 set -euo pipefail
 
@@ -24,6 +32,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 GATE="$REPO_ROOT/tools/apply_change.sh"
+APPROVE_TOOL="$REPO_ROOT/tools/approve.sh"
 RESET="$REPO_ROOT/demo/reset.sh"
 FIXTURE_DIR="$REPO_ROOT/demo/fixtures/CHG-DEMO-001"
 SANDBOX_DIR="$REPO_ROOT/sandbox"
@@ -40,7 +49,6 @@ PASS_COUNT=0
 FAIL_COUNT=0
 TEST_NUM=0
 
-# ── Portable SHA-256 Helper ───────────────────────────────────────────────────
 sha256() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1" | awk '{print $1}'
@@ -49,7 +57,6 @@ sha256() {
   fi
 }
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 begin_test() {
   TEST_NUM=$((TEST_NUM + 1))
   echo ""
@@ -69,6 +76,7 @@ fail_test() {
 SCAFFOLD_HASH=""
 scaffold_evidence() {
   local change_id="$1"
+  local target_ver="${2:-v2.0.0}"
   local ev_dir="$REPO_ROOT/evidence/$change_id"
 
   bash "$RESET" > /dev/null
@@ -96,31 +104,30 @@ $SCAFFOLD_HASH
 Verified fixture plan.
 REVIEWEOF
 
-  cat > "$ev_dir/approval.txt" << APPROVALEOF
-APPROVED $change_id ${SCAFFOLD_HASH:0:8}
-plan_hash: $SCAFFOLD_HASH
-approved_by: test-suite
-timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-APPROVALEOF
+  bash "$APPROVE_TOOL" "$change_id" "$target_ver" --yes > /dev/null
 }
 
 GATE_EXIT=0
 GATE_OUT=""
 run_gate() {
-  local change_id="$1" hash="$2" version="$3"
+  local change_id="$1" hash="$2" version="$3" target_file="${4:-}"
   GATE_EXIT=0
-  GATE_OUT=$(bash "$GATE" "$change_id" "$hash" "$version" 2>&1) || GATE_EXIT=$?
+  if [[ -n "$target_file" ]]; then
+    GATE_OUT=$(bash "$GATE" "$change_id" "$hash" "$version" "$target_file" 2>&1) || GATE_EXIT=$?
+  else
+    GATE_OUT=$(bash "$GATE" "$change_id" "$hash" "$version" 2>&1) || GATE_EXIT=$?
+  fi
 }
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  change-desk policy gate regression suite — 12 tests${NC}"
+echo -e "${BLUE}  change-desk policy gate regression suite — 20 tests${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ── TEST 1: Happy path ────────────────────────────────────────────────────────
 begin_test "Happy path — gate exits 0 and applies version"
-scaffold_evidence "CHG-20261104-001"
-run_gate "CHG-20261104-001" "$SCAFFOLD_HASH" "v2.0.0"
+scaffold_evidence "CHG-20261104-001" "v2.0.0"
+run_gate "CHG-20261104-001" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
 
 if [[ $GATE_EXIT -eq 0 ]] && grep -q "version: v2.0.0" "$APP_FILE"; then
   pass "gate exited 0 and updated sandbox to v2.0.0"
@@ -128,11 +135,11 @@ else
   fail_test "gate exit=$GATE_EXIT, output: $GATE_OUT"
 fi
 
-# ── TEST 2: Tamper detection ──────────────────────────────────────────────────
+# ── TEST 2: Tamper detection (prefix mismatch) ────────────────────────────────
 begin_test "Tamper detection — gate exits 1 on post-approval edit"
-scaffold_evidence "CHG-20261104-002"
+scaffold_evidence "CHG-20261104-002" "v2.0.0"
 printf '\n# Tampered line injected\n' >> "$REPO_ROOT/evidence/CHG-20261104-002/plan.md"
-run_gate "CHG-20261104-002" "$SCAFFOLD_HASH" "v2.0.0"
+run_gate "CHG-20261104-002" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
 
 if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "HASH MISMATCH"; then
   pass "gate exited 1 with HASH MISMATCH"
@@ -140,24 +147,106 @@ else
   fail_test "gate exit=$GATE_EXIT (expected 1 with HASH MISMATCH)"
 fi
 
-# ── TEST 3: Review-to-Plan binding ───────────────────────────────────────────
-begin_test "Review-to-Plan binding — gate exits 1 on stale review"
-scaffold_evidence "CHG-20261104-003"
-# Stale review hash
-sed -i 's/^## Plan Hash.*/## Plan Hash\n0000000000000000000000000000000000000000000000000000000000000000/' "$REPO_ROOT/evidence/CHG-20261104-003/review.md"
-run_gate "CHG-20261104-003" "$SCAFFOLD_HASH" "v2.0.0"
+# ── TEST 3: Full hash mismatch when caller uses new prefix ────────────────────
+begin_test "Full hash mismatch — passing modified plan's prefix caught by signed hash"
+scaffold_evidence "CHG-20261104-003" "v2.0.0"
+printf '\n# Tampered line injected\n' >> "$REPO_ROOT/evidence/CHG-20261104-003/plan.md"
+NEW_HASH=$(sha256 "$REPO_ROOT/evidence/CHG-20261104-003/plan.md")
+run_gate "CHG-20261104-003" "${NEW_HASH:0:8}" "v2.0.0"
 
-if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "REVIEW-TO-PLAN MISMATCH"; then
-  pass "gate exited 1 on stale review plan hash"
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "PLAN TAMPERING DETECTED"; then
+  pass "gate detected tampering against signed 64-hex hash"
 else
   fail_test "gate exit=$GATE_EXIT, output: $GATE_OUT"
 fi
 
-# ── TEST 4: Missing review ────────────────────────────────────────────────────
-begin_test "Missing review — gate exits 1 when review.md is absent"
-scaffold_evidence "CHG-20261104-004"
-rm "$REPO_ROOT/evidence/CHG-20261104-004/review.md"
-run_gate "CHG-20261104-004" "$SCAFFOLD_HASH" "v2.0.0"
+# ── TEST 4: Unsigned approval fails closed ────────────────────────────────────
+begin_test "Unsigned approval fails closed — missing hmac_sig exits 1"
+scaffold_evidence "CHG-20261104-004" "v2.0.0"
+sed -i '/^hmac_sig:/d' "$REPO_ROOT/evidence/CHG-20261104-004/approval.txt"
+run_gate "CHG-20261104-004" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
+
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "FAIL-CLOSED"; then
+  pass "gate refused unsigned approval file"
+else
+  fail_test "gate exit=$GATE_EXIT (expected fail-closed refusal)"
+fi
+
+# ── TEST 5: Forged HMAC signature rejected ────────────────────────────────────
+begin_test "Forged HMAC signature — invalid signature string exits 1"
+scaffold_evidence "CHG-20261104-005" "v2.0.0"
+sed -i 's/^hmac_sig:.*/hmac_sig: deadbeef0000111122223333444455556666777788889999aaaabbbbccccdddd/' "$REPO_ROOT/evidence/CHG-20261104-005/approval.txt"
+run_gate "CHG-20261104-005" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
+
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "INVALID OPERATOR SIGNATURE"; then
+  pass "gate detected and rejected invalid operator signature"
+else
+  fail_test "gate exit=$GATE_EXIT (expected signature refusal)"
+fi
+
+# ── TEST 6: Target version mismatch against signed approval ───────────────────
+begin_test "Version mismatch — caller version differs from signed version exits 1"
+scaffold_evidence "CHG-20261104-006" "v2.0.0"
+run_gate "CHG-20261104-006" "${SCAFFOLD_HASH:0:8}" "v9.9.9"
+
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "VERSION MISMATCH"; then
+  pass "gate rejected unauthorized target version"
+else
+  fail_test "gate exit=$GATE_EXIT (expected version mismatch refusal)"
+fi
+
+# ── TEST 7: Short hash prefix rejected immediately ────────────────────────────
+begin_test "Short hash prefix — prefix < 8 hex chars rejected immediately"
+scaffold_evidence "CHG-20261104-007" "v2.0.0"
+run_gate "CHG-20261104-007" "abc" "v2.0.0"
+
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "INVALID HASH PREFIX"; then
+  pass "gate rejected short hash prefix"
+else
+  fail_test "gate exit=$GATE_EXIT (expected short prefix refusal)"
+fi
+
+# ── TEST 8: Malformed Change ID creates no files ──────────────────────────────
+begin_test "Malformed Change ID creates no files on disk"
+bash "$RESET" > /dev/null
+BAD_ID="../../malicious_escape"
+run_gate "$BAD_ID" "12345678" "v2.0.0"
+
+if [[ $GATE_EXIT -eq 1 ]] && [[ ! -d "$REPO_ROOT/evidence/$BAD_ID" ]] && [[ ! -d "$REPO_ROOT/malicious_escape" ]]; then
+  pass "gate rejected malformed ID without creating any directories"
+else
+  fail_test "gate exit=$GATE_EXIT or created illegal path"
+fi
+
+# ── TEST 9: Missing approval file ─────────────────────────────────────────────
+begin_test "Missing approval — approval.txt absent exits 1"
+scaffold_evidence "CHG-20261104-009" "v2.0.0"
+rm -f "$REPO_ROOT/evidence/CHG-20261104-009/approval.txt"
+run_gate "CHG-20261104-009" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
+
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "Approval file not found"; then
+  pass "gate exited 1 on missing approval.txt"
+else
+  fail_test "gate exit=$GATE_EXIT (expected 1)"
+fi
+
+# ── TEST 10: Approval ID mismatch ─────────────────────────────────────────────
+begin_test "Approval ID mismatch — approval for different change ID exits 1"
+scaffold_evidence "CHG-20261104-010" "v2.0.0"
+sed -i 's/CHG-20261104-010/CHG-20261104-999/' "$REPO_ROOT/evidence/CHG-20261104-010/approval.txt"
+run_gate "CHG-20261104-010" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
+
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "Approval ID mismatch"; then
+  pass "gate exited 1 on approval ID mismatch"
+else
+  fail_test "gate exit=$GATE_EXIT (expected 1)"
+fi
+
+# ── TEST 11: Missing review file ──────────────────────────────────────────────
+begin_test "Missing review — review.md absent exits 1"
+scaffold_evidence "CHG-20261104-011" "v2.0.0"
+rm -f "$REPO_ROOT/evidence/CHG-20261104-011/review.md"
+run_gate "CHG-20261104-011" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
 
 if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "Review file not found"; then
   pass "gate exited 1 (no review.md)"
@@ -165,146 +254,140 @@ else
   fail_test "gate exit=$GATE_EXIT (expected 1)"
 fi
 
-# ── TEST 5: Reviewer verdict REJECTED ─────────────────────────────────────────
+# ── TEST 12: Reviewer verdict REJECTED ────────────────────────────────────────
 begin_test "Reviewer verdict REJECTED — gate exits 1"
-scaffold_evidence "CHG-20261104-005"
-cat > "$REPO_ROOT/evidence/CHG-20261104-005/review.md" << EOF
-# Review: CHG-20261104-005
-## Verdict
-REJECTED
-## Plan Hash
-$SCAFFOLD_HASH
-EOF
-run_gate "CHG-20261104-005" "$SCAFFOLD_HASH" "v2.0.0"
+scaffold_evidence "CHG-20261104-012" "v2.0.0"
+sed -i 's/APPROVED/REJECTED/' "$REPO_ROOT/evidence/CHG-20261104-012/review.md"
+run_gate "CHG-20261104-012" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
 
 if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "verdict is not APPROVED"; then
   pass "gate exited 1 on REJECTED verdict"
 else
-  fail_test "gate exit=$GATE_EXIT, output: $GATE_OUT"
+  fail_test "gate exit=$GATE_EXIT (expected 1)"
 fi
 
-# ── TEST 6: Invalid Change ID format ─────────────────────────────────────────
-begin_test "Invalid Change ID schema — gate exits 1"
-scaffold_evidence "CHG-20261104-006"
-run_gate "CHG-INVALID-ID" "$SCAFFOLD_HASH" "v2.0.0"
+# ── TEST 13: Missing ## Plan Hash section in review ───────────────────────────
+begin_test "Missing ## Plan Hash in review — exits 1"
+scaffold_evidence "CHG-20261104-013" "v2.0.0"
+sed -i '/## Plan Hash/,+1d' "$REPO_ROOT/evidence/CHG-20261104-013/review.md"
+run_gate "CHG-20261104-013" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
 
-if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "INVALID CHANGE ID"; then
-  pass "gate exited 1 on malformed change ID"
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "REVIEW BINDING MISSING"; then
+  pass "gate required mandatory ## Plan Hash section"
 else
   fail_test "gate exit=$GATE_EXIT, output: $GATE_OUT"
 fi
 
-# ── TEST 7: Path traversal attempt ────────────────────────────────────────────
-begin_test "Path traversal defense — gate exits 1 on escaping path"
-scaffold_evidence "CHG-20261104-007"
-run_gate "CHG-20261104-007" "$SCAFFOLD_HASH" "v2.0.0"
-# Re-verify path safety invariant directly against sandbox boundary
-REAL_SANDBOX=$(realpath "$SANDBOX_DIR")
-if [[ "$REAL_SANDBOX" != "/" ]]; then
-  pass "sandbox boundary strictly validated at $REAL_SANDBOX"
+# ── TEST 14: Non-64-hex review plan hash ──────────────────────────────────────
+begin_test "Non-64-hex review plan hash — exits 1"
+scaffold_evidence "CHG-20261104-014" "v2.0.0"
+sed -i "s/$SCAFFOLD_HASH/short_hash/" "$REPO_ROOT/evidence/CHG-20261104-014/review.md"
+run_gate "CHG-20261104-014" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
+
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "INVALID REVIEW HASH"; then
+  pass "gate required 64 hex characters for review plan hash"
 else
-  fail_test "sandbox boundary invalid"
+  fail_test "gate exit=$GATE_EXIT, output: $GATE_OUT"
 fi
 
-# ── TEST 8: Symlink escape defense ────────────────────────────────────────────
-begin_test "Symlink escape defense — gate exits 1 on symlink escape"
-scaffold_evidence "CHG-20261104-008"
-ESCAPE_FILE="/tmp/change_desk_escape_target_$$.txt"
-echo "outside content" > "$ESCAPE_FILE"
-SYMLINK_FILE="$SANDBOX_DIR/escaping_link.txt"
-ln -sf "$ESCAPE_FILE" "$SYMLINK_FILE"
+# ── TEST 15: Stale review binding ─────────────────────────────────────────────
+begin_test "Review-to-Plan binding — review conducted on different hash exits 1"
+scaffold_evidence "CHG-20261104-015" "v2.0.0"
+sed -i 's/^[0-9a-f]\{64\}$/0000000000000000000000000000000000000000000000000000000000000000/' "$REPO_ROOT/evidence/CHG-20261104-015/review.md"
+run_gate "CHG-20261104-015" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
 
-# Test readlink validation logic
-SYMLINK_CHECK=false
-if [[ -L "$SYMLINK_FILE" ]]; then
-  TARGET=$(readlink -f "$SYMLINK_FILE")
-  if [[ "$TARGET" != "$REAL_SANDBOX"/* ]]; then
-    SYMLINK_CHECK=true
-  fi
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "REVIEW-TO-PLAN MISMATCH"; then
+  pass "gate exited 1 on stale review plan hash"
+else
+  fail_test "gate exit=$GATE_EXIT (expected 1)"
 fi
-rm -f "$SYMLINK_FILE" "$ESCAPE_FILE"
 
-if [[ "$SYMLINK_CHECK" == "true" ]]; then
+# ── TEST 16: Dynamic path traversal defense ───────────────────────────────────
+begin_test "Dynamic path traversal defense — target containing '..' exits 1"
+scaffold_evidence "CHG-20261104-016" "v2.0.0"
+run_gate "CHG-20261104-016" "${SCAFFOLD_HASH:0:8}" "v2.0.0" "$SANDBOX_DIR/../outside.txt"
+
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "PATH TRAVERSAL DETECTED"; then
+  pass "gate detected and rejected path traversal in target argument"
+else
+  fail_test "gate exit=$GATE_EXIT, output: $GATE_OUT"
+fi
+
+# ── TEST 17: Symlink escape defense ───────────────────────────────────────────
+begin_test "Symlink escape defense — gate exits 1 on escaping symlink"
+scaffold_evidence "CHG-20261104-017" "v2.0.0"
+SYMLINK_PATH="$SANDBOX_DIR/escape_symlink.txt"
+ln -sf "/etc/passwd" "$SYMLINK_PATH"
+run_gate "CHG-20261104-017" "${SCAFFOLD_HASH:0:8}" "v2.0.0" "$SYMLINK_PATH"
+rm -f "$SYMLINK_PATH"
+
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -qE "(SYMLINK ESCAPE DETECTED|INVALID TARGET PATH)"; then
   pass "gate detected and rejected symlink escape outside sandbox"
 else
-  fail_test "symlink escape was not detected"
+  fail_test "gate exit=$GATE_EXIT, output: $GATE_OUT"
 fi
 
-# ── TEST 9: Replay prevention ─────────────────────────────────────────────────
-begin_test "Replay attack defense — gate exits 1 when reusing approval"
-scaffold_evidence "CHG-20261104-009"
-run_gate "CHG-20261104-009" "$SCAFFOLD_HASH" "v2.0.0"
+# ── TEST 18: Replay attack defense ────────────────────────────────────────────
+begin_test "Replay attack defense — duplicate run of same Change ID exits 1"
+scaffold_evidence "CHG-20261104-018" "v2.0.0"
+run_gate "CHG-20261104-018" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
 FIRST_EXIT=$GATE_EXIT
 
-run_gate "CHG-20261104-009" "$SCAFFOLD_HASH" "v2.0.0"
+run_gate "CHG-20261104-018" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
 SECOND_EXIT=$GATE_EXIT
 
 if [[ $FIRST_EXIT -eq 0 ]] && [[ $SECOND_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "REPLAY DETECTED"; then
   pass "second execution of same Change ID rejected with REPLAY DETECTED"
 else
-  fail_test "first exit=$FIRST_EXIT, second exit=$SECOND_EXIT, output: $GATE_OUT"
+  fail_test "first=$FIRST_EXIT, second=$SECOND_EXIT (expected 0 then 1 with REPLAY DETECTED)"
 fi
 
-# ── TEST 10: Missing approval file ────────────────────────────────────────────
-begin_test "Missing approval file — gate exits 1 when approval.txt is absent"
-scaffold_evidence "CHG-20261104-010"
-rm "$REPO_ROOT/evidence/CHG-20261104-010/approval.txt"
-run_gate "CHG-20261104-010" "$SCAFFOLD_HASH" "v2.0.0"
-
-if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "Approval file not found"; then
-  pass "gate exited 1 on missing approval.txt"
-else
-  fail_test "gate exit=$GATE_EXIT"
-fi
-
-# ── TEST 11: Approval ID mismatch ─────────────────────────────────────────────
-begin_test "Approval ID mismatch — gate exits 1 on ID mismatch in approval.txt"
-scaffold_evidence "CHG-20261104-011"
-echo "APPROVED CHG-DIFFERENT-999 ${SCAFFOLD_HASH:0:8}" > "$REPO_ROOT/evidence/CHG-20261104-011/approval.txt"
-run_gate "CHG-20261104-011" "$SCAFFOLD_HASH" "v2.0.0"
-
-if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "Approval ID mismatch"; then
-  pass "gate exited 1 on approval ID mismatch"
-else
-  fail_test "gate exit=$GATE_EXIT"
-fi
-
-# ── TEST 12: Automatic rollback ───────────────────────────────────────────────
+# ── TEST 19: Automatic rollback on health check failure ───────────────────────
 begin_test "Automatic rollback — gate restores backup when check.sh fails"
-scaffold_evidence "CHG-20261104-012"
-# Apply invalid target version format that passes gate syntax but breaks check.sh
-# To simulate check.sh failure, write a temporarily broken check script
-CHECK_BACKUP="$SANDBOX_DIR/check.sh.bak"
-cp "$SANDBOX_DIR/check.sh" "$CHECK_BACKUP"
+scaffold_evidence "CHG-20261104-019" "v2.0.0"
+CHECK_BAK="$SANDBOX_DIR/check.sh.bak"
+cp "$SANDBOX_DIR/check.sh" "$CHECK_BAK"
 
-cat > "$SANDBOX_DIR/check.sh" << 'CHECKEOF'
+cat > "$SANDBOX_DIR/check.sh" << 'FAILCHECK'
 #!/usr/bin/env bash
-echo "Simulated health check crash!"
+echo "HEALTH CHECK SIMULATED FAILURE"
 exit 1
-CHECKEOF
+FAILCHECK
+chmod +x "$SANDBOX_DIR/check.sh"
 
-run_gate "CHG-20261104-012" "$SCAFFOLD_HASH" "v2.0.0"
-# Restore real check.sh
-mv "$CHECK_BACKUP" "$SANDBOX_DIR/check.sh"
+run_gate "CHG-20261104-019" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
+mv "$CHECK_BAK" "$SANDBOX_DIR/check.sh"
 
-CURRENT_VERSION=$(grep '^version:' "$APP_FILE" | awk '{print $2}')
-if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "rolling back" && [[ "$CURRENT_VERSION" == "v1.0.0" ]]; then
+if [[ $GATE_EXIT -eq 1 ]] && grep -q "version: v1.0.0" "$APP_FILE" && echo "$GATE_OUT" | grep -q "check.sh FAILED"; then
   pass "gate exited 1, caught check failure, and reverted app to v1.0.0"
 else
-  fail_test "gate exit=$GATE_EXIT, current version=$CURRENT_VERSION"
+  fail_test "gate exit=$GATE_EXIT, app version=$(grep '^version' "$APP_FILE" 2>/dev/null || echo 'unknown')"
 fi
 
-# ── Final Summary ─────────────────────────────────────────────────────────────
-TOTAL=$((PASS_COUNT + FAIL_COUNT))
-echo ""
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-if [[ $FAIL_COUNT -eq 0 ]]; then
-  echo -e "${GREEN}  RESULT: $PASS_COUNT/$TOTAL passed — ALL 12 TESTS PASSED${NC}"
+# ── TEST 20: Clean execution.log without ANSI codes ───────────────────────────
+begin_test "Clean execution.log — strips ANSI escape sequences from log file"
+scaffold_evidence "CHG-20261104-020" "v2.0.0"
+run_gate "CHG-20261104-020" "${SCAFFOLD_HASH:0:8}" "v2.0.0"
+
+LOG_FILE="$REPO_ROOT/evidence/CHG-20261104-020/execution.log"
+if [[ -f "$LOG_FILE" ]] && ! grep -q $'\x1b' "$LOG_FILE"; then
+  pass "execution.log is clean and contains no ANSI color escape codes"
 else
-  echo -e "${RED}  RESULT: $PASS_COUNT/$TOTAL passed — $FAIL_COUNT FAILED${NC}"
+  fail_test "execution.log contains ANSI escape characters"
 fi
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
 
-bash "$RESET" > /dev/null
-[[ $FAIL_COUNT -eq 0 ]]
+# ── Summary ───────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "  RESULT: ${PASS_COUNT}/${TEST_NUM} passed"
+if [[ $FAIL_COUNT -eq 0 ]]; then
+  echo -e "  ${GREEN}ALL ${TEST_NUM} TESTS PASSED${NC}"
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo ""
+  exit 0
+else
+  echo -e "  ${RED}${FAIL_COUNT} TESTS FAILED${NC}"
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo ""
+  exit 1
+fi

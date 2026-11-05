@@ -40,6 +40,7 @@ The verdict line must be exactly `APPROVED` or `REJECTED` with nothing else on t
 
 ## Rules
 - Never modify `plan.md`.
+- Compute the plan hash by executing `./tools/hash_plan.sh <change-id>` — paste the exact 64-character output into `## Plan Hash`. Never manually type or hallucinate a hash.
 - If `plan.md` does not exist or is malformed, write `REJECTED` and explain.
 - After writing, announce in the room:
   - `REVIEW READY: <change-id> — APPROVED`

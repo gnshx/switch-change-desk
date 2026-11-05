@@ -38,10 +38,10 @@ cp "$FIXTURE_DIR/plan.md"   "$EVIDENCE_DIR/plan.md"
 cp "$FIXTURE_DIR/review.md" "$EVIDENCE_DIR/review.md"
 sed -i "s/CHG-20261104-001/$CHANGE_ID/g" "$EVIDENCE_DIR/review.md"
 
+bash "$REPO_ROOT/tools/approve.sh" "$CHANGE_ID" "v2.0.0" --yes > /dev/null
 HASH=$(sha256 "$EVIDENCE_DIR/plan.md")
 PREFIX="${HASH:0:8}"
-echo "APPROVED $CHANGE_ID $PREFIX" > "$EVIDENCE_DIR/approval.txt"
-echo "  Approval: APPROVED $CHANGE_ID $PREFIX"
+echo "  Approval: APPROVED $CHANGE_ID $PREFIX (signed with operator HMAC)"
 echo ""
 
 echo "Step 3: Simulating downstream health failure in check.sh..."
