@@ -1,36 +1,103 @@
-# switch-change-desk.template.yaml
-# One-step Switch room creation template for Change Desk
-# Compatible with Switch Console room import and CLI template creation
-
 version: 1
-name: change-desk
-description: "Human-in-the-loop change management with tamper-evident SHA-256 policy gate"
-
-knowledge:
-  - path: policy/change-policy.md
-    description: "Mandatory room rules, Change ID schemas, and gate verification invariants"
-
-instructions:
-  file: room-instructions.md
+params:
+  team:
+    type: string
+    label: Team or Room Name
+    description: Identifier for the change-desk room and agents
+    default: change-desk
+    required: true
+  provider:
+    type: provider
+    description: Coding agent that powers the room agents
+    default: [antigravity, claude, codex, opencode]
+    input: advanced
+  location:
+    type: location
+    description: Machine where agents run
+    default: local
+    input: advanced
+  directory:
+    type: directory
+    description: Agent workspace directory
+    default: "{$agents_dir}/{agent}"
+    input: advanced
+  bridge:
+    type: bridge
+    label: Messaging App
+    description: Connected chat app (Slack, Discord, Teams, or default)
+    default: [Discord, Slack, $first]
+    required: false
 
 agents:
-  - name: Planner
-    handle: planner
-    instructions: agents/planner.md
-    addressing: mention
-    role: member
+  - name: "{team}-planner"
+    display_name: Planner
     description: "Drafts scoped execution and rollback plans in evidence/<change-id>/plan.md"
+    provider: "{provider}"
+    location: "{location}"
+    directory: "{directory}"
+    addressing: anyone
+    instructions: |
+      You are the Planner agent in the change-desk room.
+      When a change request (CHG-YYYYMMDD-NNN) is posted:
+      1. Inspect sandbox/app.txt and the requested change.
+      2. Draft a comprehensive plan in evidence/<change-id>/plan.md with Objective, Steps, Rollback, and Risk Rating.
+      3. Compute the SHA-256 hash of plan.md.
+      4. Announce: "PLAN READY: <change-id>" with the SHA-256 hash.
+      5. Never modify sandbox/app.txt or execute changes.
 
-  - name: Risk Reviewer
-    handle: reviewer
-    instructions: agents/reviewer.md
-    addressing: mention
-    role: member
+  - name: "{team}-reviewer"
+    display_name: Risk Reviewer
     description: "Critiques plans, binds review to plan hash, and issues APPROVED/REJECTED verdict"
+    provider: "{provider}"
+    location: "{location}"
+    directory: "{directory}"
+    addressing: anyone
+    instructions: |
+      You are the Risk Reviewer agent in the change-desk room.
+      When a plan is ready:
+      1. Read policy/change-policy.md and evidence/<change-id>/plan.md.
+      2. Verify all safety conditions: scoped objective, reversible rollback, and sandbox containment.
+      3. Compute and bind the plan's exact SHA-256 hash into evidence/<change-id>/review.md.
+      4. Issue an APPROVED or REJECTED verdict.
+      5. Announce: "REVIEW READY: <change-id> — APPROVED" (or REJECTED).
+      6. If rejected, specify what must change.
 
-  - name: Executor
-    handle: executor
-    instructions: agents/executor.md
-    addressing: mention
-    role: owner-only
+  - name: "{team}-executor"
+    display_name: Executor
     description: "Privileged agent restricted to room owner. Triggers tools/apply_change.sh upon human approval"
+    provider: "{provider}"
+    location: "{location}"
+    directory: "{directory}"
+    addressing: owner
+    instructions: |
+      You are the privileged Executor agent in the change-desk room.
+      You are configured with addressing: owner — only the room owner can address you.
+      When the human operator posts: "APPROVED <change-id> <hash-prefix>":
+      1. Verify that the message is from the room owner.
+      2. Confirm evidence/<change-id>/plan.md and review.md (with APPROVED verdict) exist.
+      3. Run the deterministic policy gate:
+         ./tools/apply_change.sh <change-id> <hash-prefix> <target-version>
+      4. Announce the result:
+         - Success: "EXECUTED: <change-id> — check.sh PASSED"
+         - Failure: "FAILED: <change-id> — <gate refusal reason>"
+
+room:
+  name: "{team}"
+  description: "Human-in-the-loop change management with tamper-evident SHA-256 policy gate"
+  channel_type: channel_public
+  bridge: "{bridge}"
+  agents: ["{team}-planner", "{team}-reviewer", "{team}-executor"]
+  users: ["{$creator}"]
+  instructions: |
+    Welcome to Change Desk.
+    Workflow rules:
+    1. Requester posts change request with ID format CHG-YYYYMMDD-NNN.
+    2. @{team}-planner drafts plan.md and computes SHA-256 hash.
+    3. @{team}-reviewer checks plan against policy, binds plan hash, and writes review.md.
+    4. Human operator inspects diff via ./tools/approve.sh <change-id> and signs HMAC token.
+    5. Room owner posts: "APPROVED <change-id> <hash-prefix>".
+    6. @{team}-executor triggers ./tools/apply_change.sh to enforce invariants and apply change.
+
+kickoff: |
+  @{team}-planner, @{team}-reviewer, and @{team}-executor: this is your change-desk room.
+  Ready to process change requests according to policy/change-policy.md.

@@ -89,7 +89,7 @@ if [[ -n "$REVIEW_PLAN_HASH" && "$REVIEW_PLAN_HASH" != "$PLAN_HASH" && "$REVIEW_
   exit 1
 fi
 
-# ─── Operator Key Management (Stored outside repo to prevent agent forgery) ──
+# ─── Operator Key Management (Stored outside repo against prompt-level forgery) ──
 KEY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/change-desk"
 KEY_FILE="$KEY_DIR/operator.key"
 if [[ ! -f "$KEY_FILE" ]]; then

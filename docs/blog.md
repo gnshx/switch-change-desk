@@ -23,7 +23,7 @@ The workflow divides responsibilities among three specialized agent personas and
 1. **The Requester:** Broadcasts a change request with a structured Change ID (`CHG-YYYYMMDD-NNN`).
 2. **The Planner Agent:** Analyzes the scope, draft steps, rollback procedures, and blast radius into `evidence/<change-id>/plan.md`, computing its SHA-256 fingerprint.
 3. **The Risk Reviewer Agent:** Reads the plan, verifies safety conditions against room knowledge (`policy/change-policy.md`), binds the plan's hash into its review, and stamps an `APPROVED` or `REJECTED` verdict into `evidence/<change-id>/review.md`.
-4. **The Human Approver:** Inspects the diff and review using a local CLI (`tools/approve.sh`), confirms the plan, and signs an HMAC token that agents cannot forge.
+4. **The Human Approver:** Inspects the diff and review using a local CLI (`tools/approve.sh`), confirms the plan, and signs an HMAC token using a host-level key outside the repo.
 5. **The Executor Agent (Owner-Only Access):** Authorized only by the room owner to invoke the policy gate.
 6. **The Policy Gate (`apply_change.sh`):** A deterministic 8-invariant bash gate that checks the human approval, verifies the SHA-256 plan hash, confirms the reviewer verdict and plan binding, guards against path traversal, checks replay protection ledgers, executes the change, runs `sandbox/check.sh`, and automatically rolls back if health checks fail.
 
@@ -62,10 +62,10 @@ Review Bound Plan Hash == Actual Current plan.md SHA-256 == Approved Fingerprint
 ```
 If anything changed by even a single byte after review, the gate refuses execution with `REVIEW-TO-PLAN MISMATCH`.
 
-### Pitfall 3: Agent Approval Forgery
-If the approval file (`evidence/<id>/approval.txt`) is just a text file in the workspace, any agent with filesystem access could theoretically write that file.
+### Pitfall 3: Agent Approval Forgery & Residual Risk
+If the approval file (`evidence/<id>/approval.txt`) is just a plain text file in the workspace, any agent with filesystem access could write that file directly.
 
-**The Fix:** I wrote `tools/approve.sh`, a local CLI for the human operator. It displays the plan diff, prompts the human for confirmation, and signs the approval using an HMAC key stored in `~/.config/change-desk/operator.key` (outside the repo). The policy gate verifies this signature, ensuring an agent cannot forge valid approvals.
+**The Fix & Residual Risk:** I wrote `tools/approve.sh`, a local CLI for the human operator. It displays the plan diff, prompts the human for confirmation, and signs the approval using an HMAC key stored in `~/.config/change-desk/operator.key` (outside the repo). The policy gate verifies this signature. This protects against prompt injection or accidental room-level approval forging. We also honestly document the residual risk: because prototype agents run under the same OS user, file permissions alone don't prevent process-level reads; in production, this should be paired with separate OS accounts, container isolation, or a hardware security key (YubiKey).
 
 ### Pitfall 4: Test Repeatability & Cold-State Resets
 Multi-agent testing creates dirty state fast. Evidence folders accumulate, version numbers bump, and previous runs cause false positives. Writing an idempotent reset script (`demo/reset.sh`) and building pre-packaged offline fixtures (`demo/fixtures/`) allowed me to build a 12-test automated regression suite (`make test`) that runs offline in seconds.

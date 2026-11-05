@@ -59,6 +59,7 @@ flowchart TD
 We keep our security claims strictly grounded:
 
 - **Role separation is instructional:** In this setup, Planner, Reviewer, and Executor agents are separated by prompt instructions and Switch addressing roles. Any agent with direct filesystem write access could theoretically modify files directly. In production, this should be paired with OS-level container isolation per agent.
+- **Operator key & residual risk:** The HMAC key (`~/.config/change-desk/operator.key`) is stored outside the repo to protect against prompt-level injection, accidental forgery, or agents writing approvals from the room. However, because agents and the operator run under the same OS user in this prototype, same-user file read access remains a residual risk. In production, this is closed by running agents under unprivileged accounts or using WebAuthn / hardware keys (YubiKey).
 - **Switch owner-only setting:** The Executor's access is configured as owner-only in Switch room settings. Until tested with multiple physical accounts, we claim this as "configured as owner-only," not "cryptographically verified against a hostile model."
 - **Sandbox containment:** `sandbox/app.txt` serves as a stand-in for infrastructure state, database schema, or microservice configuration. The gate protects the target path from directory traversal, but does not isolate arbitrary system commands.
 - **Evidence auditability:** Audit records in `evidence/` are tamper-evident via SHA-256 fingerprints and run ledgers, not immutable hardware storage.
@@ -114,27 +115,25 @@ switch-change-desk/
 - [Switch Console](https://github.com/sandbox-quantum/switch) installed and signed in
 - Bash (macOS/Linux or WSL) with `openssl`
 
-### Option A: One-Step Room Import (Recommended)
+### Option A: One-Step Room Template Import
 
 1. Open **Switch Console**.
-2. Click **Import Room Template** and select [`switch-change-desk.template.yaml`](switch-change-desk.template.yaml).
+2. Open the **Templates** tab, choose **Run Template**, and select or paste [`switch-change-desk.template.yaml`](switch-change-desk.template.yaml).
 3. Switch automatically configures:
    - Room name: `change-desk`
-   - Room knowledge: `policy/change-policy.md`
-   - Room instructions: `room-instructions.md`
-   - Planner agent (`@planner`): role `member`, addressing `mention`
-   - Risk Reviewer agent (`@reviewer`): role `member`, addressing `mention`
-   - Executor agent (`@executor`): role `owner-only`, addressing `mention`
+   - Room instructions: [room-instructions.md](room-instructions.md)
+   - Planner agent (`@change-desk-planner`): `addressing: anyone`
+   - Risk Reviewer agent (`@change-desk-reviewer`): `addressing: anyone`
+   - Executor agent (`@change-desk-executor`): `addressing: owner` (only the room owner can address this agent)
 
 ### Option B: Manual Room Configuration
 
-1. Create a room named `change-desk`.
-2. Attach `policy/change-policy.md` as **Room Knowledge**.
-3. Paste `room-instructions.md` into **Room Instructions**.
-4. Create 3 agents with their respective instruction files in `agents/`:
-   - **Planner:** instructions from `agents/planner.md`
-   - **Risk Reviewer:** instructions from `agents/reviewer.md`
-   - **Executor:** instructions from `agents/executor.md` → **Set Role to Owner-Only**.
+1. Create a room named `change-desk` in Switch Console.
+2. Add room instructions from [room-instructions.md](room-instructions.md).
+3. Create 3 agents with their respective instructions:
+   - **Planner:** instructions from [agents/planner.md](agents/planner.md), addressing set to `Anyone`
+   - **Risk Reviewer:** instructions from [agents/reviewer.md](agents/reviewer.md), addressing set to `Anyone`
+   - **Executor:** instructions from [agents/executor.md](agents/executor.md) → **set Addressing to `Owner`**.
 
 ---
 
