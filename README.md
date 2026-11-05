@@ -86,7 +86,7 @@ switch-change-desk/
   tools/
     apply_change.sh                 ← Deterministic policy gate (8 invariant checks)
     approve.sh                      ← Human approval CLI with HMAC signature generation
-    test_gate.sh                    ← 12-test automated regression suite
+    test_gate.sh                    ← 21-test automated regression suite
     offline_sim.sh                  ← Offline simulation harness for CI/local testing
   demo/
     script.md                       ← 2.5-minute video recording script (5 beats)
@@ -143,28 +143,34 @@ switch-change-desk/
 
 1. **Requester posts in Switch room:**
    ```
-   Change request: CHG-20261104-001
+   @change-desk-planner Change request: CHG-20261104-001
    What: Bump sandbox app from v1.0.0 to v2.0.0
    Target: sandbox/app.txt
+   Target version: v2.0.0
    ```
 2. **Planner produces plan:**
-   Planner writes `evidence/CHG-20261104-001/plan.md` and announces:
-   `PLAN READY: CHG-20261104-001`
+   Planner writes `evidence/CHG-20261104-001/plan.md`, computes hash via `./tools/hash_plan.sh`, and announces:
+   `@change-desk-reviewer PLAN READY: CHG-20261104-001 (Plan SHA-256: <hash>). Please review according to change policy.`
 3. **Risk Reviewer audits plan:**
-   Reviewer audits `plan.md`, binds its SHA-256 digest into `review.md`, and announces:
-   `REVIEW READY: CHG-20261104-001 — APPROVED`
+   Reviewer audits `plan.md` against `policy/change-policy.md`, records the 64-hex `## Plan Hash` in `evidence/CHG-20261104-001/review.md`, and announces:
+   `REVIEW READY: CHG-20261104-001 — APPROVED (Plan Hash: <hash>). Awaiting human operator sign-off.`
 4. **Human reviews & signs approval:**
    In your terminal, run:
    ```bash
-   ./tools/approve.sh CHG-20261104-001
+   ./tools/approve.sh CHG-20261104-001 v2.0.0
    ```
-   This displays the plan and review, asks for `y/N` confirmation, computes the SHA-256 hash, signs an operator HMAC token, and outputs:
-   `APPROVED CHG-20261104-001 <hash-prefix>`
+   This displays the complete plan and review, asks for interactive `approve` confirmation on TTY, validates plan binding, signs an operator HMAC token binding `ID:PlanHash:Version`, and outputs:
+   `@change-desk-executor APPROVED CHG-20261104-001 <hash-prefix>`
 5. **Approver replies in Switch room:**
-   Post the output line: `APPROVED CHG-20261104-001 <hash-prefix>`
+   Post the exact output line:
+   `@change-desk-executor APPROVED CHG-20261104-001 <hash-prefix>`
 6. **Executor invokes gate:**
-   The Executor runs `apply_change.sh CHG-20261104-001 <hash-prefix> v2.0.0`.
-   The gate validates all 8 invariants, applies the change, runs `sandbox/check.sh`, and announces `EXECUTED`.
+   The Executor (gated by `addressing: owner`) runs:
+   ```bash
+   ./tools/apply_change.sh CHG-20261104-001 <hash-prefix> v2.0.0
+   ```
+   The gate validates all 8 invariants, applies the change, runs `sandbox/check.sh`, writes clean execution log, and announces:
+   `EXECUTION COMPLETE: CHG-20261104-001. Version: v2.0.0. Health check: PASSED. Evidence locked.`
 
 ---
 
@@ -173,7 +179,7 @@ switch-change-desk/
 To ensure the deterministic gate and rollback mechanisms can be validated in CI and by evaluators offline, we provide a complete regression harness:
 
 ```bash
-# 1. Run the comprehensive 12-test gate regression suite
+# 1. Run the comprehensive 21-test gate regression suite
 make test
 
 # 2. Run the offline happy path demo fixture (v1.0.0 → v2.0.0)
@@ -192,22 +198,31 @@ make sim
 make ci
 ```
 
-### 12 Regression Tests Implemented
+### 21 Regression Tests Implemented
 
 | # | Test Case | Expected Outcome |
 |---|---|---|
 | 1 | Happy path execution | Exits 0, `v1.0.0 → v2.0.0`, `check.sh PASSED` |
 | 2 | Post-approval plan tampering | Exits 1 with `HASH MISMATCH` |
-| 3 | Stale review / review-to-plan mismatch | Exits 1 with `REVIEW-TO-PLAN MISMATCH` |
-| 4 | Missing `review.md` | Exits 1 with `Review file not found` |
-| 5 | Reviewer verdict `REJECTED` | Exits 1 with `verdict is not APPROVED` |
-| 6 | Invalid Change ID format | Exits 1 with `INVALID CHANGE ID` |
-| 7 | Path traversal escape attempt | Exits 1 with containment violation |
-| 8 | Symlink escape outside sandbox | Exits 1 with symlink escape detected |
-| 9 | Replay attack (reusing approval) | Exits 1 with `REPLAY DETECTED` |
-| 10 | Missing `approval.txt` | Exits 1 with `Approval file not found` |
-| 11 | Approval Change ID mismatch | Exits 1 with `Approval ID mismatch` |
-| 12 | Health check failure auto-rollback | Exits 1, reverts sandbox to `v1.0.0` |
+| 3 | Full hash mismatch against signed hash | Exits 1, detects prefix vs 64-hex divergence |
+| 4 | Unsigned approval fails closed | Exits 1, rejects missing `hmac_sig` |
+| 5 | Invalid / forged HMAC signature | Exits 1, detects invalid signature |
+| 6 | Target version mismatch against signature | Exits 1, rejects unauthorized version |
+| 7 | Short hash prefix (< 8 hex chars) | Exits 1 immediately on prefix length |
+| 8 | Malformed Change ID creates no files | Exits 1 without touching filesystem |
+| 9 | Missing `approval.txt` | Exits 1 with `Approval file not found` |
+| 10 | Approval Change ID mismatch | Exits 1 with `Approval ID mismatch` |
+| 11 | Missing `review.md` | Exits 1 with `Review file not found` |
+| 12 | Reviewer verdict `REJECTED` | Exits 1 with `verdict is not APPROVED` |
+| 13 | Missing `## Plan Hash` in review | Exits 1 with missing plan hash section |
+| 14 | Malformed review plan hash | Exits 1 with non-64-hex review hash |
+| 15 | Stale review / review-to-plan mismatch | Exits 1 with review plan hash mismatch |
+| 16 | Dynamic path traversal escape attempt | Exits 1 with containment violation |
+| 17 | Symlink escape outside sandbox | Exits 1 with symlink escape detected |
+| 18 | Replay attack (reusing approval) | Exits 1 with `REPLAY DETECTED` |
+| 19 | Health check failure auto-rollback | Exits 1, reverts sandbox to `v1.0.0` |
+| 20 | Clean log output | Exits 0, strips ANSI color escapes from log |
+| 21 | Approve CLI `--yes` refusal | Exits 1, refuses `--yes` bypass flag |
 
 ---
 

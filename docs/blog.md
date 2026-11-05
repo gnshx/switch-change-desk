@@ -23,8 +23,8 @@ The workflow divides responsibilities among three specialized agent personas and
 1. **The Requester:** Broadcasts a change request with a structured Change ID (`CHG-YYYYMMDD-NNN`).
 2. **The Planner Agent:** Analyzes the scope, draft steps, rollback procedures, and blast radius into `evidence/<change-id>/plan.md`, computing its SHA-256 fingerprint.
 3. **The Risk Reviewer Agent:** Reads the plan, verifies safety conditions against room knowledge (`policy/change-policy.md`), binds the plan's hash into its review, and stamps an `APPROVED` or `REJECTED` verdict into `evidence/<change-id>/review.md`.
-4. **The Human Approver:** Inspects the diff and review using a local CLI (`tools/approve.sh`), confirms the plan, and signs an HMAC token using a host-level key outside the repo.
-5. **The Executor Agent (Owner-Only Access):** Authorized only by the room owner to invoke the policy gate.
+4. **The Human Approver:** Inspects the diff and review using a local CLI (`tools/approve.sh`), confirms the plan on an interactive TTY, and cryptographically signs an HMAC token using a host-level key outside the repo, binding Change ID, Plan Hash, and Target Version.
+5. **The Executor Agent (Addressing: Owner):** Gated by Switch so only the room owner can address this agent.
 6. **The Policy Gate (`apply_change.sh`):** A deterministic 8-invariant bash gate that checks the human approval, verifies the SHA-256 plan hash, confirms the reviewer verdict and plan binding, guards against path traversal, checks replay protection ledgers, executes the change, runs `sandbox/check.sh`, and automatically rolls back if health checks fail.
 
 ---
@@ -33,14 +33,14 @@ The workflow divides responsibilities among three specialized agent personas and
 
 Three specific Switch capabilities made this architecture clean and practical:
 
-### 1. Owner-Only Agent Access Control
-In Switch room settings, each agent can have distinct addressing and role permissions. By configuring the **Executor agent as `owner-only`**, Switch guarantees that guests or non-owner members in the room cannot instruct the Executor to trigger execution. The platform refuses non-owner messages before they ever touch the model's context window.
+### 1. Owner Addressing Access Control
+In Switch room settings, each agent can have distinct addressing rules. By setting the **Executor agent's addressing to `owner`**, Switch guarantees that guests or other agents in the room cannot address or instruct the Executor to trigger execution. The platform enforces this at the delivery layer before messages ever reach the model.
 
-### 2. Room Knowledge as Institutional Memory
-Instead of re-injecting 50 lines of policy rules into every prompt, I uploaded `policy/change-policy.md` as **Room Knowledge**. Every agent that enters the `change-desk` room immediately inherits the required Change ID schemas, file path conventions, and verification steps. This eliminated context drift across long conversations.
+### 2. Shared Workspace & Multi-Agent Specialization
+By pointing all three agents at the repository directory, Switch allows the Planner to produce evidence artifacts, the Reviewer to inspect and bind hashes, and the Executor to run the deterministic gate—all coordinated transparently in the `#change-desk` room.
 
 ### 3. One-Click Reproducibility via Template YAML
-Switch supports room templating. By packaging the entire architecture into [`switch-change-desk.template.yaml`](../switch-change-desk.template.yaml), anyone can import the room, agents, instructions, and knowledge files into Switch Console in a single click.
+Switch supports room templating. By packaging the entire architecture into [`switch-change-desk.template.yaml`](../switch-change-desk.template.yaml) (and validating it with Switch's internal linter), anyone can import the room, agents, instructions, and workspace configurations into Switch Console in a single click.
 
 ---
 
@@ -68,7 +68,7 @@ If the approval file (`evidence/<id>/approval.txt`) is just a plain text file in
 **The Fix & Residual Risk:** I wrote `tools/approve.sh`, a local CLI for the human operator. It displays the plan diff, prompts the human for confirmation, and signs the approval using an HMAC key stored in `~/.config/change-desk/operator.key` (outside the repo). The policy gate verifies this signature. This protects against prompt injection or accidental room-level approval forging. We also honestly document the residual risk: because prototype agents run under the same OS user, file permissions alone don't prevent process-level reads; in production, this should be paired with separate OS accounts, container isolation, or a hardware security key (YubiKey).
 
 ### Pitfall 4: Test Repeatability & Cold-State Resets
-Multi-agent testing creates dirty state fast. Evidence folders accumulate, version numbers bump, and previous runs cause false positives. Writing an idempotent reset script (`demo/reset.sh`) and building pre-packaged offline fixtures (`demo/fixtures/`) allowed me to build a 12-test automated regression suite (`make test`) that runs offline in seconds.
+Multi-agent testing creates dirty state fast. Evidence folders accumulate, version numbers bump, and previous runs cause false positives. Writing an idempotent reset script (`demo/reset.sh`) and building pre-packaged offline fixtures (`demo/fixtures/`) allowed me to build a 21-test automated regression suite (`make test`) that runs offline in seconds.
 
 ---
 
@@ -83,7 +83,7 @@ You can run the entire regression suite offline right now without API keys:
 git clone https://github.com/gnshx/switch-change-desk.git
 cd switch-change-desk
 
-# Run the 12-test policy gate regression suite
+# Run the 21-test policy gate regression suite
 make test
 
 # Watch the happy path demo fixture (v1.0.0 → v2.0.0)
