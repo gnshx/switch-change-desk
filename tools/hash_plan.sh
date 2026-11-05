@@ -36,3 +36,4 @@ if [[ "${2:-}" == "--prefix" ]]; then
 else
   echo "$FULL_HASH"
 fi
+

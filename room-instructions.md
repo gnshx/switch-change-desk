@@ -23,33 +23,35 @@ This room runs a structured change workflow. Every change is planned, reviewed, 
 
 ## How to Request a Change
 
-Post a message in this format:
+Post a message addressing the Planner in this format:
 
 ```
-Change request: CHG-YYYYMMDD-NNN
+@change-desk-planner Change request: CHG-YYYYMMDD-NNN
 What: <one sentence describing the change>
 Target: sandbox/app.txt
 ```
 
 Example:
 ```
-Change request: CHG-20261104-001
+@change-desk-planner Change request: CHG-20261104-001
 What: Bump sandbox app from v1.0.0 to v2.0.0
 Target: sandbox/app.txt
 ```
 
-The Planner will respond with `PLAN READY: <change-id>`.
+The Planner will respond addressing the Reviewer:
+`@change-desk-reviewer PLAN READY: <change-id>`
 
 ---
 
 ## Workflow
 
 ```
-You post a request
-  → Planner writes plan.md and announces PLAN READY
-  → Reviewer reads plan, writes review.md, announces REVIEW READY
-  → You read both files, then post: APPROVED <change-id> <hash-prefix>
-  → Executor runs the gate and announces EXECUTED or FAILED
+You post request addressing @change-desk-planner
+  → @change-desk-planner writes plan.md and announces: @change-desk-reviewer PLAN READY: <id>
+  → @change-desk-reviewer reads plan & policy, writes review.md, announces: REVIEW READY: <id> — APPROVED
+  → You run ./tools/approve.sh <change-id> <version> in terminal to review diff and sign token
+  → You post in chat: @change-desk-executor APPROVED <change-id> <hash-prefix>
+  → @change-desk-executor runs gate and announces EXECUTED or FAILED
 ```
 
 ---
@@ -59,26 +61,31 @@ You post a request
 Use the human approval CLI in your terminal:
 
 ```bash
-./tools/approve.sh <change-id>
+./tools/approve.sh <change-id> <target-version>
+```
+
+Example:
+```bash
+./tools/approve.sh CHG-20261104-001 v2.0.0
 ```
 
 This tool:
-1. Displays the plan diff and reviewer verdict
+1. Displays the complete plan and reviewer risks/verdict
 2. Verifies that the reviewer's recorded plan hash matches `plan.md`
-3. Asks for your `y/N` confirmation
+3. Asks for your `y/N` confirmation interactively on `/dev/tty`
 4. Computes the SHA-256 fingerprint
-5. Cryptographically signs an HMAC operator token in `evidence/<change-id>/approval.txt`
+5. Cryptographically signs an HMAC operator token bound to ID, Plan Hash, and Target Version
 6. Prints the exact line to paste into the Switch room
 
 You then post that output line in the room:
 
 ```
-APPROVED CHG-YYYYMMDD-NNN <first-8-chars-of-hash>
+@change-desk-executor APPROVED CHG-YYYYMMDD-NNN <first-8-chars-of-hash>
 ```
 
 Example:
 ```
-APPROVED CHG-20261104-001 a3f9d12b
+@change-desk-executor APPROVED CHG-20261104-001 b574a815
 ```
 
 ---
@@ -116,6 +123,6 @@ Any late-arriving auditor can reconstruct the full story from these files.
 
 ---
 
-## Outsider Refusal
+## Addressing & Access Boundaries
 
-If someone who is not the room owner tries to instruct the Executor, Switch will refuse the message before it reaches the agent. The Executor will never see it.
+The Executor is configured with `addressing: owner`. Non-owner messages are not treated as instructions; only the room owner may direct the Executor to invoke the deterministic policy gate.

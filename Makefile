@@ -28,7 +28,7 @@ check:
 reset:
 	@bash $(REPO_ROOT)/demo/reset.sh
 
-## test: Run the 12-test policy gate regression suite (tools/test_gate.sh)
+## test: Run the 21-test policy gate regression suite (tools/test_gate.sh)
 test:
 	@bash $(REPO_ROOT)/tools/test_gate.sh
 
@@ -64,8 +64,10 @@ template:
 
 ## lint-template: Validate switch-change-desk.template.yaml with Switch core linter
 lint-template:
-	@if [ -x "/home/ganesh/.local/opt/switch-console/opt/Switch Console/resources/local-server/python/bin/python" ]; then \
-		"/home/ganesh/.local/opt/switch-console/opt/Switch Console/resources/local-server/python/bin/python" $(REPO_ROOT)/tools/lint_template.py; \
+	@if [ -x "$$HOME/.local/opt/switch-console/opt/Switch Console/resources/local-server/python/bin/python" ]; then \
+		"$$HOME/.local/opt/switch-console/opt/Switch Console/resources/local-server/python/bin/python" $(REPO_ROOT)/tools/lint_template.py; \
+	elif [ -x "/opt/Switch Console/resources/local-server/python/bin/python" ]; then \
+		"/opt/Switch Console/resources/local-server/python/bin/python" $(REPO_ROOT)/tools/lint_template.py; \
 	else \
 		python3 $(REPO_ROOT)/tools/lint_template.py; \
 	fi

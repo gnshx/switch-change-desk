@@ -9,7 +9,7 @@ __pycache__/
 # Evidence run artifacts — keep .gitkeep, ignore per-change dirs
 evidence/CHG-*/
 evidence/CHG_*/
-evidence/.applied_ledger
+evidence/.applied_ledger*
 
 # Test run artifacts
 evidence/*-TEST-*/

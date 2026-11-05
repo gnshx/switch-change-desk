@@ -3,6 +3,7 @@
 # Copies fixtures, writes approval, then tampers plan.md before running gate.
 # Expects gate to REFUSE with exit 1 and "HASH MISMATCH".
 set -uo pipefail
+export CHANGE_DESK_TEST_MODE=1
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHANGE_ID="CHG-20261104-002"
@@ -43,7 +44,7 @@ echo "  Pre-tamper prefix:  $ORIGINAL_PREFIX"
 echo ""
 
 echo "Step 3: Signing approval for pre-tamper plan with operator HMAC..."
-bash "$REPO_ROOT/tools/approve.sh" "$CHANGE_ID" "v2.0.0" --yes > /dev/null
+bash "$REPO_ROOT/tools/approve.sh" "$CHANGE_ID" "v2.0.0" > /dev/null
 echo "  Approval: APPROVED $CHANGE_ID $ORIGINAL_PREFIX (signed)"
 echo ""
 

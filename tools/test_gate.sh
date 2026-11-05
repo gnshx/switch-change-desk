@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tools/test_gate.sh — Comprehensive 20-test regression suite for policy gate
+# tools/test_gate.sh — Comprehensive 21-test regression suite for policy gate
 #
 # Tests all 8 deterministic safety invariants and edge cases:
 #   1. Happy path                 — gate exits 0, version applied, check.sh passes
@@ -22,11 +22,13 @@
 #  18. Replay prevention          — duplicate run of same Change ID exits 1
 #  19. Automatic rollback         — check.sh failure reverts state to v1.0.0 exits 1
 #  20. Clean log output           — execution.log strips ANSI escape sequences
+#  21. Approve CLI --yes refusal  — approve.sh refuses --yes bypass flag
 #
 # Resets sandbox between tests via demo/reset.sh.
-# Final summary: N/20 passed. Exits 0 if all pass, 1 if any fail.
+# Final summary: N/21 passed. Exits 0 if all pass, 1 if any fail.
 
 set -euo pipefail
+export CHANGE_DESK_TEST_MODE=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -104,7 +106,7 @@ $SCAFFOLD_HASH
 Verified fixture plan.
 REVIEWEOF
 
-  bash "$APPROVE_TOOL" "$change_id" "$target_ver" --yes > /dev/null
+  bash "$APPROVE_TOOL" "$change_id" "$target_ver" > /dev/null
 }
 
 GATE_EXIT=0
@@ -121,7 +123,7 @@ run_gate() {
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  change-desk policy gate regression suite — 20 tests${NC}"
+echo -e "${BLUE}  change-desk policy gate regression suite — 21 tests${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ── TEST 1: Happy path ────────────────────────────────────────────────────────
@@ -321,7 +323,7 @@ ln -sf "/etc/passwd" "$SYMLINK_PATH"
 run_gate "CHG-20261104-017" "${SCAFFOLD_HASH:0:8}" "v2.0.0" "$SYMLINK_PATH"
 rm -f "$SYMLINK_PATH"
 
-if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -qE "(SYMLINK ESCAPE DETECTED|INVALID TARGET PATH)"; then
+if [[ $GATE_EXIT -eq 1 ]] && echo "$GATE_OUT" | grep -q "SYMLINK ESCAPE DETECTED"; then
   pass "gate detected and rejected symlink escape outside sandbox"
 else
   fail_test "gate exit=$GATE_EXIT, output: $GATE_OUT"
@@ -374,6 +376,17 @@ if [[ -f "$LOG_FILE" ]] && ! grep -q $'\x1b' "$LOG_FILE"; then
   pass "execution.log is clean and contains no ANSI color escape codes"
 else
   fail_test "execution.log contains ANSI escape characters"
+fi
+
+# ── TEST 21: approve.sh refuses --yes bypass flag ─────────────────────────────
+begin_test "approve.sh security — refuses --yes bypass flag"
+APPROVE_EXIT=0
+APPROVE_OUT=$(bash "$APPROVE_TOOL" "CHG-20261104-020" "v2.0.0" --yes 2>&1) || APPROVE_EXIT=$?
+
+if [[ $APPROVE_EXIT -eq 1 ]] && echo "$APPROVE_OUT" | grep -q "disabled for security"; then
+  pass "approve.sh strictly refused --yes flag"
+else
+  fail_test "approve.sh exited $APPROVE_EXIT (expected 1 with refusal)"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────

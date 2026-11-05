@@ -3,6 +3,7 @@
 # Simulates a change where the resulting app state fails check.sh,
 # demonstrating the deterministic gate's automatic backup restoration.
 set -uo pipefail
+export CHANGE_DESK_TEST_MODE=1
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHANGE_ID="CHG-20261104-003"
@@ -38,7 +39,7 @@ cp "$FIXTURE_DIR/plan.md"   "$EVIDENCE_DIR/plan.md"
 cp "$FIXTURE_DIR/review.md" "$EVIDENCE_DIR/review.md"
 sed -i "s/CHG-20261104-001/$CHANGE_ID/g" "$EVIDENCE_DIR/review.md"
 
-bash "$REPO_ROOT/tools/approve.sh" "$CHANGE_ID" "v2.0.0" --yes > /dev/null
+bash "$REPO_ROOT/tools/approve.sh" "$CHANGE_ID" "v2.0.0" > /dev/null
 HASH=$(sha256 "$EVIDENCE_DIR/plan.md")
 PREFIX="${HASH:0:8}"
 echo "  Approval: APPROVED $CHANGE_ID $PREFIX (signed with operator HMAC)"

@@ -49,3 +49,4 @@ if not res.ok or res.errors:
 
 print("\n✓ Template lint passed with 0 errors!")
 sys.exit(0)
+

@@ -38,7 +38,7 @@ agents:
       Turn a change request into a structured, reviewable plan. Write it to disk. Announce it. Stop.
 
       ## Trigger
-      You act when a message in the room contains a **Change ID** in the format `CHG-YYYYMMDD-NNN` and a description of what should change.
+      You act when a message in the room addresses you (`@change-desk-planner`) with a **Change ID** in the format `CHG-YYYYMMDD-NNN` and a description of what should change.
 
       ## What You Write
       File: `evidence/<change-id>/plan.md`
@@ -68,7 +68,8 @@ agents:
       - Compute the plan hash by executing `./tools/hash_plan.sh <change-id>` — never type or guess a hash.
       - Do NOT touch `sandbox/`, `review.md`, or `approval.txt`.
       - Do NOT apply any change to the running system.
-      - After writing, announce in the room: `PLAN READY: <change-id>`
+      - After writing, hand off by addressing the reviewer in the room:
+        `@change-desk-reviewer PLAN READY: <change-id>`
       - If the request is ambiguous, ask **one clarifying question** before writing any file.
       - Never fabricate a change ID — use the one from the request.
 
@@ -92,10 +93,11 @@ agents:
       Read the plan. Critique it honestly. Write a verdict. Announce it. Stop.
 
       ## Trigger
-      You act when a message in the room contains `PLAN READY: <change-id>`.
+      You act when a message in the room addresses you (`@change-desk-reviewer`) with `PLAN READY: <change-id>`.
 
       ## What You Read
-      File: `evidence/<change-id>/plan.md`
+      1. File: `evidence/<change-id>/plan.md`
+      2. Policy: `policy/change-policy.md` (read directly from the workspace to audit against all gate rules)
 
       ## What You Write
       File: `evidence/<change-id>/review.md`
@@ -126,9 +128,10 @@ agents:
 
       ## Rules
       - Never modify `plan.md`.
+      - Read and verify requirements against `policy/change-policy.md`.
       - Compute the plan hash by executing `./tools/hash_plan.sh <change-id>` — paste the exact 64-character output into `## Plan Hash`. Never manually type or hallucinate a hash.
       - If `plan.md` does not exist or is malformed, write `REJECTED` and explain.
-      - After writing, announce in the room:
+      - After writing, announce in the room addressing the room owner:
         - `REVIEW READY: <change-id> — APPROVED`
         - `REVIEW READY: <change-id> — REJECTED`
       - If REJECTED, state clearly what must change before you will approve.
@@ -163,16 +166,17 @@ agents:
       On explicit owner approval, run the policy gate. Report the result. Stop.
 
       ## Trigger
-      A message from the room owner in this exact format:
+      A message addressing you from the room owner in this exact format:
       ```
-      APPROVED <change-id> <first-8-or-more-chars-of-plan-sha256>
+      @change-desk-executor APPROVED <change-id> <first-8-or-more-chars-of-plan-sha256>
       ```
 
       ## Pre-flight Checks (before running anything)
       1. Confirm the message is from the room owner.
       2. Confirm `evidence/<change-id>/review.md` exists.
       3. Confirm `evidence/<change-id>/plan.md` exists.
-      4. Confirm `evidence/.applied_ledger` does NOT already record `<change-id>` as successfully executed.
+      4. Confirm `evidence/<change-id>/approval.txt` exists.
+      5. Confirm `evidence/.applied_ledger` does NOT already record `<change-id>` as successfully executed.
 
       If any pre-flight check fails, announce the reason and do NOT run the gate.
 
@@ -180,7 +184,7 @@ agents:
       Parse the approval message to extract:
       - `CHANGE_ID` — the change ID
       - `HASH_PREFIX` — the hash prefix
-      - `TARGET_VERSION` — read from `evidence/<change-id>/plan.md` Objective line
+      - `TARGET_VERSION` — read `target_version:` from `evidence/<change-id>/approval.txt`
 
       Run:
       ```bash
@@ -234,33 +238,35 @@ room:
 
     ## How to Request a Change
 
-    Post a message in this format:
+    Post a message addressing the Planner in this format:
 
     ```
-    Change request: CHG-YYYYMMDD-NNN
+    @change-desk-planner Change request: CHG-YYYYMMDD-NNN
     What: <one sentence describing the change>
     Target: sandbox/app.txt
     ```
 
     Example:
     ```
-    Change request: CHG-20261104-001
+    @change-desk-planner Change request: CHG-20261104-001
     What: Bump sandbox app from v1.0.0 to v2.0.0
     Target: sandbox/app.txt
     ```
 
-    The Planner will respond with `PLAN READY: <change-id>`.
+    The Planner will respond addressing the Reviewer:
+    `@change-desk-reviewer PLAN READY: <change-id>`
 
     ---
 
     ## Workflow
 
     ```
-    You post a request
-      → Planner writes plan.md and announces PLAN READY
-      → Reviewer reads plan, writes review.md, announces REVIEW READY
-      → You read both files, then post: APPROVED <change-id> <hash-prefix>
-      → Executor runs the gate and announces EXECUTED or FAILED
+    You post request addressing @change-desk-planner
+      → @change-desk-planner writes plan.md and announces: @change-desk-reviewer PLAN READY: <id>
+      → @change-desk-reviewer reads plan & policy, writes review.md, announces: REVIEW READY: <id> — APPROVED
+      → You run ./tools/approve.sh <change-id> <version> in terminal to review diff and sign token
+      → You post in chat: @change-desk-executor APPROVED <change-id> <hash-prefix>
+      → @change-desk-executor runs gate and announces EXECUTED or FAILED
     ```
 
     ---
@@ -270,26 +276,31 @@ room:
     Use the human approval CLI in your terminal:
 
     ```bash
-    ./tools/approve.sh <change-id>
+    ./tools/approve.sh <change-id> <target-version>
+    ```
+
+    Example:
+    ```bash
+    ./tools/approve.sh CHG-20261104-001 v2.0.0
     ```
 
     This tool:
-    1. Displays the plan diff and reviewer verdict
+    1. Displays the complete plan and reviewer risks/verdict
     2. Verifies that the reviewer's recorded plan hash matches `plan.md`
-    3. Asks for your `y/N` confirmation
+    3. Asks for your `y/N` confirmation interactively on `/dev/tty`
     4. Computes the SHA-256 fingerprint
-    5. Cryptographically signs an HMAC operator token in `evidence/<change-id>/approval.txt`
+    5. Cryptographically signs an HMAC operator token bound to ID, Plan Hash, and Target Version
     6. Prints the exact line to paste into the Switch room
 
     You then post that output line in the room:
 
     ```
-    APPROVED CHG-YYYYMMDD-NNN <first-8-chars-of-hash>
+    @change-desk-executor APPROVED CHG-YYYYMMDD-NNN <first-8-chars-of-hash>
     ```
 
     Example:
     ```
-    APPROVED CHG-20261104-001 a3f9d12b
+    @change-desk-executor APPROVED CHG-20261104-001 b574a815
     ```
 
     ---
@@ -327,9 +338,9 @@ room:
 
     ---
 
-    ## Outsider Refusal
+    ## Addressing & Access Boundaries
 
-    If someone who is not the room owner tries to instruct the Executor, Switch will refuse the message before it reaches the agent. The Executor will never see it.
+    The Executor is configured with `addressing: owner`. Non-owner messages are not treated as instructions; only the room owner may direct the Executor to invoke the deterministic policy gate.
 
 kickoff: |
   @change-desk-planner @change-desk-reviewer @change-desk-executor:

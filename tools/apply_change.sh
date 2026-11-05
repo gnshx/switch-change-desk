@@ -45,8 +45,8 @@ TARGET_VERSION="$3"
 GIVEN_TARGET_FILE="${4:-}"
 
 # Fail immediately without creating any files if arguments are malformed
-if [[ ! "$CHANGE_ID" =~ ^CHG-[0-9]{8}-[0-9]{3,}$ ]]; then
-  echo "GATE REFUSED: INVALID CHANGE ID: '$CHANGE_ID'. Must match CHG-YYYYMMDD-NNN" >&2
+if [[ ! "$CHANGE_ID" =~ ^CHG-[0-9]{8}-[0-9]{3}$ ]]; then
+  echo "GATE REFUSED: INVALID CHANGE ID: '$CHANGE_ID'. Must match CHG-YYYYMMDD-NNN (exactly 3 digits)" >&2
   exit 1
 fi
 
@@ -243,12 +243,7 @@ if [[ "$APP_FILE" == *".."* ]]; then
   fail "PATH TRAVERSAL DETECTED: target path contains '..' escape sequence: $APP_FILE"
 fi
 
-REAL_APP_FILE=$(realpath -m "$APP_FILE" 2>/dev/null || echo "$APP_FILE")
 REAL_SANDBOX=$(realpath "$SANDBOX_DIR" 2>/dev/null || echo "$SANDBOX_DIR")
-
-if [[ "$REAL_APP_FILE" != "$REAL_SANDBOX"/* && "$REAL_APP_FILE" != "$REAL_SANDBOX" ]]; then
-  fail "INVALID TARGET PATH — target escapes sandbox/: $REAL_APP_FILE"
-fi
 
 # Reject if target path is an existing symlink pointing outside sandbox
 if [[ -L "$APP_FILE" ]]; then
@@ -256,6 +251,12 @@ if [[ -L "$APP_FILE" ]]; then
   if [[ "$SYMLINK_TARGET" != "$REAL_SANDBOX"/* ]]; then
     fail "SYMLINK ESCAPE DETECTED — symlink points outside sandbox: $SYMLINK_TARGET"
   fi
+fi
+
+REAL_APP_FILE=$(realpath -m "$APP_FILE" 2>/dev/null || echo "$APP_FILE")
+
+if [[ "$REAL_APP_FILE" != "$REAL_SANDBOX"/* && "$REAL_APP_FILE" != "$REAL_SANDBOX" ]]; then
+  fail "INVALID TARGET PATH — target escapes sandbox/: $REAL_APP_FILE"
 fi
 log "${GREEN}  ✓ Target path is strictly contained inside sandbox/ ($REAL_APP_FILE)${NC}"
 

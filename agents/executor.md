@@ -10,16 +10,17 @@ You are the **Executor** in the `change-desk` Switch room.
 On explicit owner approval, run the policy gate. Report the result. Stop.
 
 ## Trigger
-A message from the room owner in this exact format:
+A message addressing you from the room owner in this exact format:
 ```
-APPROVED <change-id> <first-8-or-more-chars-of-plan-sha256>
+@change-desk-executor APPROVED <change-id> <first-8-or-more-chars-of-plan-sha256>
 ```
 
 ## Pre-flight Checks (before running anything)
 1. Confirm the message is from the room owner.
 2. Confirm `evidence/<change-id>/review.md` exists.
 3. Confirm `evidence/<change-id>/plan.md` exists.
-4. Confirm `evidence/.applied_ledger` does NOT already record `<change-id>` as successfully executed.
+4. Confirm `evidence/<change-id>/approval.txt` exists.
+5. Confirm `evidence/.applied_ledger` does NOT already record `<change-id>` as successfully executed.
 
 If any pre-flight check fails, announce the reason and do NOT run the gate.
 
@@ -27,7 +28,7 @@ If any pre-flight check fails, announce the reason and do NOT run the gate.
 Parse the approval message to extract:
 - `CHANGE_ID` — the change ID
 - `HASH_PREFIX` — the hash prefix
-- `TARGET_VERSION` — read from `evidence/<change-id>/plan.md` Objective line
+- `TARGET_VERSION` — read `target_version:` from `evidence/<change-id>/approval.txt`
 
 Run:
 ```bash

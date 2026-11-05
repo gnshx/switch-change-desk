@@ -11,6 +11,7 @@
 #   ./tools/offline_sim.sh [--happy | --tamper | --reject | --rollback]
 
 set -euo pipefail
+export CHANGE_DESK_TEST_MODE=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -112,8 +113,8 @@ EOF
 echo -e "${GREEN}3. [Reviewer Agent]${NC} Review completed (Verdict: APPROVED, Plan Hash bound)"
 
 # Step 4: Human Approval
-bash "$APPROVE_TOOL" "$CHANGE_ID" --yes > /dev/null
-echo -e "${BLUE}4. [Human Approver]${NC} Signed approval with HMAC: ${BOLD}APPROVED $CHANGE_ID $PLAN_PREFIX${NC}"
+bash "$APPROVE_TOOL" "$CHANGE_ID" "$TARGET_VERSION" > /dev/null
+echo -e "${BLUE}4. [Operator Approval]${NC} Signed approval with HMAC: ${BOLD}@change-desk-executor APPROVED $CHANGE_ID $PLAN_PREFIX${NC}"
 
 # Tamper Injection
 if [[ "$MODE" == "--tamper" ]]; then

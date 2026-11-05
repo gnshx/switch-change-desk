@@ -2,6 +2,7 @@
 # run_happy_path.sh — Demo: happy path using pre-written fixtures
 # Copies CHG-20261104-001 fixtures, computes hash, runs gate. Expects exit 0.
 set -uo pipefail
+export CHANGE_DESK_TEST_MODE=1
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHANGE_ID="CHG-20261104-001"
@@ -37,7 +38,7 @@ echo "  review.md copied (verdict: $(grep -A1 '## Verdict' "$EVIDENCE_DIR/review
 echo ""
 
 echo "Step 3: Signing human approval with operator key..."
-bash "$REPO_ROOT/tools/approve.sh" "$CHANGE_ID" "v2.0.0" --yes > /dev/null
+bash "$REPO_ROOT/tools/approve.sh" "$CHANGE_ID" "v2.0.0" > /dev/null
 HASH=$(sha256 "$EVIDENCE_DIR/plan.md")
 HASH_PREFIX="${HASH:0:8}"
 echo "  SHA-256:  $HASH"
