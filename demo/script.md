@@ -11,7 +11,7 @@
 - [ ] Terminal open in repo root
 - [ ] Switch room `change-desk` open in browser/app
 - [ ] Planner, Reviewer, Executor agents loaded with correct instructions
-- [ ] Executor access set to owner-only
+- [ ] Executor addressing set to owner
 - [ ] `sandbox/app.txt` shows `version: v1.0.0` (run `./demo/reset.sh`)
 - [ ] `evidence/` is empty (run `./demo/reset.sh`)
 - [ ] Wispr Flow running (for the dictation side track)
@@ -35,39 +35,40 @@
 **Do:**
 1. Type in Switch room:
    ```
-   Change request: CHG-20261104-001
+   @change-desk-planner Change request: CHG-20261104-001
    What: Bump sandbox app from v1.0.0 to v2.0.0
    Target: sandbox/app.txt
+   Target version: v2.0.0
    ```
 
 **Say:**
-> "The Planner picks it up and writes a structured plan."
+> "The Planner picks it up, writes a structured plan, and hands it off to the Risk Reviewer."
 
 **Do:**
-2. Show Planner response in room: `PLAN READY: CHG-20261104-001`
+2. Show Planner response in room: `@change-desk-reviewer PLAN READY: CHG-20261104-001 (Plan SHA-256: <hash>)`
 3. Run in terminal: `cat evidence/CHG-20261104-001/plan.md`
 
 **Say:**
-> "The Risk Reviewer independently critiques it."
+> "The Risk Reviewer independently critiques it, binds the plan's exact SHA-256 hash, and announces approval."
 
 **Do:**
-4. Show Reviewer response: `REVIEW READY: CHG-20261104-001 — APPROVED`
+4. Show Reviewer response: `REVIEW READY: CHG-20261104-001 — APPROVED (Plan Hash: <hash>). Awaiting human operator sign-off.`
 5. Run: `cat evidence/CHG-20261104-001/review.md`
 
 **Say:**
-> "I read both. I'm satisfied. I run our local approval tool to inspect and sign the change."
+> "I read both. I'm satisfied. I run our local operator CLI to inspect and cryptographically sign the change."
 
 **Do:**
-6. Run: `./tools/approve.sh CHG-20261104-001`
-   - Show the CLI summary of the plan, reviewer verdict, and HMAC signature generation.
-   - Enter `y` to approve.
-7. Post in Switch room: `APPROVED CHG-20261104-001 <hash>`
+6. Run: `./tools/approve.sh CHG-20261104-001 v2.0.0`
+   - Show the CLI summary of the full plan, reviewer verdict, and HMAC signature generation.
+   - Type `approve` to confirm.
+7. Post paste line in Switch room: `@change-desk-executor APPROVED CHG-20261104-001 <hash-prefix>`
 
 **Say:**
-> "The Executor, which only accepts my instructions, runs the policy gate."
+> "The Executor, configured with addressing: owner so only I can instruct it, runs the deterministic policy gate."
 
 **Do:**
-8. Show Executor response: `EXECUTED: CHG-20261104-001 — check.sh PASSED`
+8. Show Executor response: `EXECUTION COMPLETE: CHG-20261104-001. Version: v2.0.0. Health check: PASSED. Evidence locked.`
 9. Run: `cat sandbox/app.txt` → shows `version: v2.0.0`
 10. Run: `cat evidence/CHG-20261104-001/execution.log` (scroll to bottom)
 
