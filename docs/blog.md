@@ -16,7 +16,7 @@ A change request goes through a Switch room: request, plan, review, human approv
 
 ## Where Switch fits
 
-The room is the coordination layer. Agents hand work to each other by @mention, and the whole conversation is in one place. The executor's addressing is set to owner, so only the room owner is admitted to instruct it. Switch decides who can instruct the executor. A small script decides whether the change is allowed to run.
+The room is the coordination layer. Agents hand work to each other by @mention, and the whole conversation is in one place. In the agent's settings, the executor's addressing is set to **Who can talk to your agent: Only me (`owner`)** (*"Only you, in person. Agents cannot talk to it, including your own"*). Switch decides who can instruct the executor. A small script decides whether the change is allowed to run.
 
 ![Switch Room Kickoff and Agent Roles](screenshots/02-room-kickoff.jpg)
 

@@ -67,10 +67,10 @@ Run `cat sandbox/app.txt` to show `version: v2.0.0`.
 
 ## Beat 3: Owner Addressing in Switch (1:20–1:40)
 
-*Screen: Click the **Configuration** tab for `change-desk-executor` in Switch Console. Highlight the `Addressing: Owner` setting on screen.*
+*Screen: Open Agent settings for `change-desk-executor` in Switch Console. Highlight the "Who can talk to your agent: Only me (owner)" setting.*
 
 **Narration:**
-> "Here's the Switch part. The executor's addressing is set to owner, so only the room owner is admitted to instruct it. The planner and reviewer aren't admitted by that setting."
+> "Here's the Switch part. In the executor's settings, 'Who can talk to your agent' is set to 'Only me' — owner. Switch's description says it best: 'Only you, in person. Agents cannot talk to it, including your own.' The planner and reviewer aren't admitted by that setting."
 
 ---
 
