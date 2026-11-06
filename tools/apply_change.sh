@@ -152,7 +152,14 @@ log "${GREEN}  ✓ Approval ID matches${NC}"
 # ─── Check 4: Fail-Closed Cryptographic HMAC Signature Verification ───────────
 log ""
 log "${YELLOW}[4/8] Verifying cryptographic human operator signature...${NC}"
-KEY_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/change-desk/operator.key"
+KEY_FILE="${OPERATOR_KEY_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/change-desk/operator.key}"
+if [[ ! -f "$KEY_FILE" && -f "$HOME/.config/change-desk/operator.key" ]]; then
+  KEY_FILE="$HOME/.config/change-desk/operator.key"
+fi
+REAL_USER_HOME=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f6 || echo "$HOME")
+if [[ ! -f "$KEY_FILE" && -n "$REAL_USER_HOME" && -f "$REAL_USER_HOME/.config/change-desk/operator.key" ]]; then
+  KEY_FILE="$REAL_USER_HOME/.config/change-desk/operator.key"
+fi
 if [[ ! -f "$KEY_FILE" ]]; then
   fail "FAIL-CLOSED: Operator key missing at $KEY_FILE. Human signing required."
 fi
