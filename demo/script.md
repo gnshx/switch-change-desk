@@ -33,7 +33,7 @@ Target version: v2.0.0
 **Narration:**
 > "I post a change request in a Switch room. The planner writes a plan and hands it to the reviewer by name."
 
-*Screen: Planner replies with `@change-desk-reviewer PLAN READY: CHG-20261106-001` and SHA-256 hash. Reviewer inspects policy and replies with `REVIEW READY: CHG-20261106-001 — APPROVED`.*
+*Screen: Planner replies with `@change-desk-reviewer PLAN READY: CHG-20261106-001` and SHA-256 hash. Reviewer inspects policy and replies with `REVIEW READY: CHG-20261106-001 — APPROVED`.*  
 *(In video editing: show a visible "4x" badge during agent thinking time).*
 
 **Narration:**
@@ -44,7 +44,7 @@ Switch to terminal and run:
 ```bash
 ./tools/approve.sh CHG-20261106-001 v2.0.0
 ```
-Show the formatted CLI output displaying the plan, reviewer verdict, and full 64-hex SHA-256 hash. Type `y` or `approve` to confirm.
+Show the formatted CLI output displaying the plan, reviewer verdict, and full 64-hex SHA-256 hash. Type `y` to confirm.
 
 **Narration:**
 > "In my terminal I read the full plan and review, and sign the approval, tied to this change ID, this exact plan, and this version. I paste the approval line back into the room."
@@ -70,13 +70,13 @@ Run `cat sandbox/app.txt` to show `version: v2.0.0`.
 *Screen: Click the **Configuration** tab for `change-desk-executor` in Switch Console. Highlight the `Addressing: Owner` setting on screen.*
 
 **Narration:**
-> "Here's the Switch part. The executor's addressing is set to owner, so only the room owner is admitted to instruct it. The planner and reviewer can't tell it to run anything."
+> "Here's the Switch part. The executor's addressing is set to owner, so only the room owner is admitted to instruct it. The planner and reviewer aren't admitted by that setting."
 
 ---
 
 ## Beat 4: Tamper Detection (1:40–2:05)
 
-*Screen: Terminal running `make demo-tamper` (labeled on-screen as **[Offline Fixture]**).*
+*Screen: Terminal running `make demo-tamper`.*
 
 **Action:**
 Run:
@@ -86,13 +86,13 @@ make demo-tamper
 Point to the refusal message: `GATE REFUSED: HASH MISMATCH`.
 
 **Narration:**
-> "Now the gate. After approval, someone changes one character in the plan. The gate recomputes the hash, sees it differs from what was approved, and refuses. Approval is bound to the exact plan."
+> "Now the gate, shown here in an offline fixture. After approval, someone changes one character in the plan. The gate recomputes the hash, sees it differs from what was approved, and refuses. Approval is bound to the exact plan."
 
 ---
 
 ## Beat 5: Automatic Rollback (2:05–2:25)
 
-*Screen: Terminal running `make demo-rollback` (labeled on-screen as **[Offline Fixture]**).*
+*Screen: Terminal running `make demo-rollback`.*
 
 **Action:**
 Run:
@@ -102,7 +102,7 @@ make demo-rollback
 Point to the terminal output showing health check failure, backup restoration, and rollback to `v1.0.0`.
 
 **Narration:**
-> "If the health check fails after a change, the gate restores the backup automatically."
+> "Here's our offline rollback fixture. If the health check fails after a change, the gate restores the backup automatically."
 
 ---
 
@@ -111,15 +111,8 @@ Point to the terminal output showing health check failure, backup restoration, a
 *Screen: Terminal running `make test`, followed by showing `examples/evidence/live-run-CHG-20261104-001/`.*
 
 **Action:**
-1. Run:
-   ```bash
-   make test
-   ```
-   Show `21/21 passed — ALL 21 TESTS PASSED`.
-2. Run:
-   ```bash
-   ls examples/evidence/live-run-CHG-20261104-001/
-   ```
+1. Run: `make test` (show `21/21 passed — ALL 21 TESTS PASSED`).
+2. Run: `ls examples/evidence/live-run-CHG-20261104-001/`.
 
 **Narration:**
 > "Twenty-one regression tests cover replay, traversal, unsigned approvals, and more. Every change leaves a trail: plan, review, approval, and execution log. This is a sandbox prototype, and the README lists its limits. It's open source, and the link is below."
