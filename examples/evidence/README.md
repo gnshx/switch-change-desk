@@ -16,3 +16,4 @@ This directory contains committed evidence records for evaluation and offline ve
 
 3. **`CHG-20261104-001/` [OFFLINE TEST FIXTURE]**
    - Offline fixture used by the automated test suite (`make test`).
+
