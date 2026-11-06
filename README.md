@@ -6,8 +6,8 @@
 [![Switch Console](https://img.shields.io/badge/Switch_Console-v0.40.1-brightgreen.svg)](https://github.com/sandbox-quantum/switch)
 [![Tests: 21 Passed](https://img.shields.io/badge/Tests-21%2F21_Passed-success.svg)](tools/test_gate.sh)
 
-Built for the **Switch Hackathon** (Track 1: Best Business Workflow; Side Tracks: Best Blog, Code with Wispr).  
-*Developed with Antigravity; tested live on Switch Console v0.40.1 with OpenCode runtime.*
+Built for the **Switch Hackathon** (Track 1: Best Business Workflow; Side Track: Best Blog).  
+*Developed with Antigravity; tested live on Switch Console v0.40.1 with OpenCode runtime (nemotron-3.5-lightning-free).*
 
 - **Live Walkthrough Video:** `[VIDEO_LINK_PLACEHOLDER]` *(~2:45 walkthrough)*
 - **Blog Post:** [`docs/blog.md`](docs/blog.md) *(#HowISwitch)*
@@ -137,13 +137,16 @@ switch-change-desk/
 ### Option A: One-Step Room Template Import
 
 1. Open **Switch Console**.
-2. Open the **Templates** tab, choose **Run Template**, and select or paste [`switch-change-desk.template.yaml`](switch-change-desk.template.yaml).
-3. Switch automatically configures:
+2. Open the **Templates** tab, choose **Use Template** on `change-desk` (or click **Import template** and choose [`switch-change-desk.template.yaml`](switch-change-desk.template.yaml)).
+3. Verify the parameters:
+   - **Provider:** `OpenCode` (template default checks OpenCode first)
+   - **Directory:** `/path/to/switch-change-desk` (must point to your local repo clone)
+4. Click **Create all**. Switch automatically configures:
    - Room name: `change-desk`
    - Room instructions: [room-instructions.md](room-instructions.md)
    - Planner agent (`@change-desk-planner`): `addressing: anyone`
    - Risk Reviewer agent (`@change-desk-reviewer`): `addressing: anyone`
-   - Executor agent (`@change-desk-executor`): `addressing: owner` (only the room owner can address this agent)
+   - Executor agent (`@change-desk-executor`): `addressing: owner` (`Who can talk to your agent: Only me`)
 
 ### Option B: Manual Room Configuration
 

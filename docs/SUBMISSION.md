@@ -7,11 +7,11 @@
 | **Project Name** | Change Desk |
 | **One-Line Pitch** | A collaborative multi-agent change management workflow in Switch that enforces a verifiable approval trail and deterministic policy gate checks before any change can touch application state. |
 | **Primary Track** | **Track 1: Best Business Workflow** |
-| **Side Tracks** | Best Blog, Code with Wispr (Wispr Flow scorecard attached) |
+| **Side Tracks** | Best Blog (#HowISwitch) |
 | **Repository** | [https://github.com/gnshx/switch-change-desk](https://github.com/gnshx/switch-change-desk) |
 | **Demo Video** | `[VIDEO_LINK_PLACEHOLDER]` (~2:45 walkthrough) |
 | **Blog Post** | `[BLOG_LINK_PLACEHOLDER]` (available in `docs/blog.md`) |
-| **Runtime & Tooling** | Developed with Antigravity; live run on Switch Console v0.40.1 with OpenCode runtime |
+| **Runtime & Tooling** | Developed with Antigravity; live run on Switch Console v0.40.1 with OpenCode runtime (nemotron-3.5-lightning-free) |
 
 ---
 

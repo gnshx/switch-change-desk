@@ -25,7 +25,7 @@ params:
   provider:
     type: provider
     description: Coding agent runtime that powers the room agents
-    default: [antigravity, claude, codex, opencode]
+    default: [opencode, antigravity, claude, codex]
     input: advanced
   location:
     type: location
