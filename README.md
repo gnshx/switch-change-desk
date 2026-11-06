@@ -2,7 +2,8 @@
 
 > **Give every AI-assisted change a tamper-evident paper trail: request → plan → review → human approval → execution → health check. Make skipping a step impossible at the gate.**
 
-Built for the **Switch Hackathon** (Track 1: Best Business Workflow) using [Switch](https://github.com/sandbox-quantum/switch) and [Antigravity](https://antigravity.google).
+Built for the **Switch Hackathon** (Track 1: Best Business Workflow) using [Switch](https://github.com/sandbox-quantum/switch) and [Antigravity](https://antigravity.google).  
+*Tested live on Switch Console v0.40.1.*
 
 ---
 
@@ -96,7 +97,9 @@ switch-change-desk/
     run_rollback_beat.sh            ← Offline fixture demo: health check failure auto-rollback
     fixtures/                       ← Pre-verified fixture files
   examples/evidence/
-    CHG-DEMO-001/                   ← Committed complete audit trail of a real run
+    live-run-CHG-20261104-001/      ← Committed live run audit trail from Switch Console
+    CHG-DEMO-001/                   ← Committed complete audit trail of offline demo run
+    README.md                       ← Evidence documentation and fixture guide
   docs/
     prd.md                          ← Product Requirements Document
     mvp.md                          ← MVP Scope and Acceptance Criteria
