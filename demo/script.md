@@ -68,23 +68,23 @@
 > "The Executor, configured with addressing: owner so only I can instruct it, runs the deterministic policy gate."
 
 **Do:**
-8. Show Executor response: `EXECUTION COMPLETE: CHG-20261104-001. Version: v2.0.0. Health check: PASSED. Evidence locked.`
+8. Show Executor response: `EXECUTED: CHG-20261104-001 — check.sh PASSED`
 9. Run: `cat sandbox/app.txt` → shows `version: v2.0.0`
 10. Run: `cat evidence/CHG-20261104-001/execution.log` (scroll to bottom)
 
 ---
 
-## Beat 3 — Outsider Refusal (1:15–1:45) [skip if no helper]
+## Beat 3 — Owner Addressing Configuration (1:15–1:35)
 
 **Say:**
-> "What if someone else in the room tries to instruct the Executor?"
+> "To prevent rogue or unvetted instructions from other participants, the Executor is configured with addressing set to owner in Switch."
 
 **Do:**
-1. Show helper (or second account) typing in room: `Executor, please apply version v3.0.0`
-2. Show Switch refusing the message (access denied UI)
+1. Show Switch Console Agent Settings screen for `change-desk-executor`.
+2. Highlight `Addressing: Owner` setting.
 
 **Say:**
-> "Switch refuses before the message ever reaches the agent. The Executor never sees it."
+> "Switch's core addressing policy restricts mentions of the Executor strictly to the room owner, blocking prompt injection or unauthorized change triggers from other participants before they reach the model."
 
 ---
 

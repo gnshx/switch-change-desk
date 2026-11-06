@@ -170,7 +170,7 @@ switch-change-desk/
    ./tools/apply_change.sh CHG-20261104-001 <hash-prefix> v2.0.0
    ```
    The gate validates all 8 invariants, applies the change, runs `sandbox/check.sh`, writes clean execution log, and announces:
-   `EXECUTION COMPLETE: CHG-20261104-001. Version: v2.0.0. Health check: PASSED. Evidence locked.`
+   `EXECUTED: CHG-20261104-001 — check.sh PASSED`
 
 ---
 
