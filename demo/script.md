@@ -1,19 +1,20 @@
 # Demo Video Script — Change Desk (~2:45)
 
-**Target Duration:** ~2 minutes 45 seconds  
+**Target Duration:** ~2 minutes 30–45 seconds  
 **Prep Before Recording:**
 1. Run `make reset` in terminal (resets `sandbox/app.txt` to `v1.0.0` and clears evidence).
-2. Ensure Switch Console is open to `#change-desk` with all 3 agents showing online.
+2. Ensure Switch Console is open to `#change-desk` with all 3 agents showing online (OpenCode runtime).
 3. Keep terminal clean and readable; close any tabs/windows containing keys, tokens, or environment dumps.
 4. Silence system notifications (enable Do Not Disturb).
 
 ---
 
-## Beat 1: The Problem (0:00–0:15)
+## Beat 1: Hook & The Problem (0:00–0:15)
 
-*Screen: Title card / terminal banner "Change Desk — Tamper-Evident AI Change Management"*
+*Screen: Start by showing the completed run in Switch Console for 5 seconds (`EXECUTED: check.sh PASSED`), then cut to the clean `#change-desk` room.*
 
-> "AI agents can change production state with a single prompt. Nothing proves someone reviewed the plan, who approved it, or that the plan that ran is the plan that was approved. Change Desk fixes that, using Switch."
+**Narration:**
+> "AI agents can change system state with a single prompt. But nothing proves someone reviewed the plan, who approved it, or that the plan that ran was what was approved. Change Desk fixes that by combining a collaborative Switch room with a deterministic policy gate."
 
 ---
 
@@ -21,7 +22,7 @@
 
 *Screen: The Switch Console `#change-desk` room.*
 
-**Action 1 (User in Switch chat):**
+**Action 1 (In Switch chat):**
 Type and send:
 ```text
 @change-desk-planner Change request: CHG-20261106-001
@@ -31,7 +32,7 @@ Target version: v2.0.0
 ```
 
 **Narration:**
-> "I post a change request in a Switch room. The planner writes a plan and hands it to the reviewer by name."
+> "I post a change request in our Switch room. The planner writes a plan and hands it to the reviewer by name."
 
 *Screen: Planner replies with `@change-desk-reviewer PLAN READY: CHG-20261106-001` and SHA-256 hash. Reviewer inspects policy and replies with `REVIEW READY: CHG-20261106-001 — APPROVED`.*  
 *(In video editing: show a visible "4x" badge during agent thinking time).*
@@ -39,8 +40,8 @@ Target version: v2.0.0
 **Narration:**
 > "The reviewer checks it against policy and records the plan's hash. Now it's my turn."
 
-**Action 2 (Terminal):**
-Switch to terminal and run:
+**Action 2 (In Terminal):**
+Run:
 ```bash
 ./tools/approve.sh CHG-20261106-001 v2.0.0
 ```
@@ -49,32 +50,41 @@ Show the formatted CLI output displaying the plan, reviewer verdict, and full 64
 **Narration:**
 > "In my terminal I read the full plan and review, and sign the approval, tied to this change ID, this exact plan, and this version. I paste the approval line back into the room."
 
-**Action 3 (Switch chat):**
+**Action 3 (In Switch chat):**
 Copy and paste the output line into the room:
 ```text
 @change-desk-executor APPROVED CHG-20261106-001 <hash-prefix>
 ```
 
-*Screen: Executor runs 4 tool calls across 23 seconds, then posts `EXECUTED: CHG-20261106-001 — check.sh PASSED`.*
+*Screen: Executor runs tool calls, then posts `EXECUTED: CHG-20261106-001 — check.sh PASSED`.*
 
-**Action 4 (Terminal):**
+**Action 4 (In Terminal):**
 Run `cat sandbox/app.txt` to show `version: v2.0.0`.
 
 **Narration:**
-> "The executor runs a policy gate, applies the change, and runs the health check. Version one to version two, with the evidence saved."
+> "The executor calls our policy gate script, applies the change, and runs the health check. Version one to version two, with the evidence saved."
 
 ---
 
-## Beat 3: Owner Addressing in Switch (1:20–1:40)
+## Beat 3: Owner Addressing in Switch (1:20–1:35)
 
 *Screen: Open Agent settings for `change-desk-executor` in Switch Console. Highlight the "Who can talk to your agent: Only me (owner)" setting.*
 
 **Narration:**
-> "Here's the Switch part. In the executor's settings, 'Who can talk to your agent' is set to 'Only me' — owner. Switch's description says it best: 'Only you, in person. Agents cannot talk to it, including your own.' The planner and reviewer aren't admitted by that setting."
+> "Here's the Switch access control. In the executor's settings, 'Who can talk to your agent' is set to 'Only me' — owner. Switch's description says: 'Only you, in person. Agents cannot talk to it, including your own.' The planner and reviewer aren't admitted by that setting."
 
 ---
 
-## Beat 4: Tamper Detection (1:40–2:05)
+## Beat 3.5: The Room as the Audit Trail (1:35–1:45)
+
+*Screen: Switch Console `#change-desk` room, gently scrolling from the change request down to execution.*
+
+**Narration:**
+> "Notice how the Switch room itself serves as the visible audit log: request, plan hash, review verdict, operator sign-off, and execution report, all preserved in one shared timeline."
+
+---
+
+## Beat 4: Tamper Detection (1:45–2:05)
 
 *Screen: Terminal running `make demo-tamper`.*
 
@@ -111,8 +121,8 @@ Point to the terminal output showing health check failure, backup restoration, a
 *Screen: Terminal running `make test`, followed by showing `examples/evidence/live-run-CHG-20261104-001/`.*
 
 **Action:**
-1. Run: `make test` (show `21/21 passed — ALL 21 TESTS PASSED`).
+1. Run: `make test` (show `21/21 passed — ALL 21 TESTS PASSED` in ~2 seconds).
 2. Run: `ls examples/evidence/live-run-CHG-20261104-001/`.
 
 **Narration:**
-> "Twenty-one regression tests cover replay, traversal, unsigned approvals, and more. Every change leaves a trail: plan, review, approval, and execution log. This is a sandbox prototype, and the README lists its limits. It's open source, and the link is below."
+> "Twenty-one regression tests cover replay, traversal, and unsigned approvals. Every change leaves a trail: plan, review, approval, and execution log. Multi-agent speed with an approval you can audit. It's open source, and the link is below."

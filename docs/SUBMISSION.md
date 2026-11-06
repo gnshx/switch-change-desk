@@ -5,12 +5,13 @@
 | Field | Value |
 |---|---|
 | **Project Name** | Change Desk |
-| **One-Line Pitch** | A collaborative multi-agent change management workflow in Switch that enforces cryptographic tamper-evidence and deterministic policy gate checks before any change can touch application state. |
+| **One-Line Pitch** | A collaborative multi-agent change management workflow in Switch that enforces a verifiable approval trail and deterministic policy gate checks before any change can touch application state. |
 | **Primary Track** | **Track 1: Best Business Workflow** |
 | **Side Tracks** | Best Blog, Code with Wispr (Wispr Flow scorecard attached) |
 | **Repository** | [https://github.com/gnshx/switch-change-desk](https://github.com/gnshx/switch-change-desk) |
-| **Demo Video** | `[VIDEO_LINK_PLACEHOLDER]` (2.5 min walkthrough) |
+| **Demo Video** | `[VIDEO_LINK_PLACEHOLDER]` (~2:45 walkthrough) |
 | **Blog Post** | `[BLOG_LINK_PLACEHOLDER]` (available in `docs/blog.md`) |
+| **Runtime & Tooling** | Developed with Antigravity; live run on Switch Console v0.40.1 with OpenCode runtime |
 
 ---
 
@@ -51,7 +52,7 @@ The submission is structured for rapid evaluation and reproduction. Evaluators c
 - [x] Template YAML provided for one-click Switch room setup: `switch-change-desk.template.yaml`
 - [x] Offline regression suite passes 100%: `make test` (21/21 PASS)
 - [x] Offline demo fixtures pass: `make demo-happy`, `make demo-tamper`, `make demo-rollback`
-- [x] Committed sample evidence trail provided: `examples/evidence/CHG-DEMO-001/`
+- [x] Committed live-run evidence trail provided: `examples/evidence/live-run-CHG-20261104-001/` and offline fixture `examples/evidence/CHG-DEMO-001/`
 - [x] Comprehensive documentation organized in `docs/` (`prd.md`, `mvp.md`, `plan.md`, `agent-design.md`, `blog.md`)
 - [ ] Record 2.5-min walkthrough video following `demo/script.md` and replace placeholder link
 - [ ] Publish blog draft and replace placeholder link

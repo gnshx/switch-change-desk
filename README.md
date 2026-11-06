@@ -1,9 +1,25 @@
 # Change Desk
 
-> **Give every AI-assisted change a tamper-evident paper trail: request → plan → review → human approval → execution → health check. Make skipping a step impossible at the gate.**
+> **Give every AI-assisted change a verifiable approval trail: request → plan → review → human approval → execution → health check. Make skipping a step impossible at the gate.**
 
-Built for the **Switch Hackathon** (Track 1: Best Business Workflow) using [Switch](https://github.com/sandbox-quantum/switch) and [Antigravity](https://antigravity.google).  
-*Tested live on Switch Console v0.40.1.*
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Switch Console](https://img.shields.io/badge/Switch_Console-v0.40.1-brightgreen.svg)](https://github.com/sandbox-quantum/switch)
+[![Tests: 21 Passed](https://img.shields.io/badge/Tests-21%2F21_Passed-success.svg)](tools/test_gate.sh)
+
+Built for the **Switch Hackathon** (Track 1: Best Business Workflow; Side Tracks: Best Blog, Code with Wispr).  
+*Developed with Antigravity; tested live on Switch Console v0.40.1 with OpenCode runtime.*
+
+- **Live Walkthrough Video:** `[VIDEO_LINK_PLACEHOLDER]` *(~2:45 walkthrough)*
+- **Blog Post:** [`docs/blog.md`](docs/blog.md) *(#HowISwitch)*
+- **Sanitized Live Run Evidence:** [`examples/evidence/live-run-CHG-20261104-001/`](examples/evidence/live-run-CHG-20261104-001/)
+
+![Change Desk Live Execution in Switch Console](docs/screenshots/04-execution-success.jpg)
+
+### 30-Second Pitch
+When an AI agent can execute changes directly, speed is easy but accountability is fragile. Change Desk combines **Switch** with a deterministic policy gate script to bring verifiable change management to multi-agent operations:
+1. **Switch Coordination:** A collaborative `#change-desk` room where agents hand work off by `@mention`.
+2. **Switch Access Control:** The Executor agent is set to **`Who can talk to your agent: Only me (owner)`**, ensuring other bots and guests aren't admitted to instruct it.
+3. **Deterministic Gate (`tools/apply_change.sh`):** A bash script that verifies 8 invariants outside the LLM (replay ledger, HMAC signature, plan hash match, review-to-plan binding, sandbox containment) and rolls back automatically on health check failure.
 
 ---
 
