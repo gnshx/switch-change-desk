@@ -1,0 +1,6 @@
+APPROVED CHG-20261104-001 19bacc11
+plan_hash: 19bacc11137716da980617a60ef7acfb4360fb20b90b9440e40ba8cfc4214039
+target_version: v2.0.0
+approved_by: operator-key-cli
+timestamp: 2026-11-06T09:52:42Z
+hmac_sig: f6f95241420175294c1c745842f50214aefd45fabee38b31f9baa70e59c6ea46

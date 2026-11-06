@@ -1,0 +1,97 @@
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+apply_change.sh — Deterministic Policy Gate (8 Invariants)
+Change ID:        CHG-20261104-001
+Hash prefix:      19bacc11
+Target version:   v2.0.0
+Target file:      $REPO_ROOT/sandbox/app.txt
+Timestamp:        2026-11-06T09:51:07Z
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1/8] Validating argument schemas...
+  ✓ Change ID format valid (CHG-20261104-001)
+  ✓ Hash prefix format valid (19bacc11)
+  ✓ Target version format valid (v2.0.0)
+
+[2/8] Checking replay protection ledger...
+  ✓ No prior execution detected in ledger
+
+[3/8] Checking human approval file...
+GATE REFUSED: Approval file not found: $REPO_ROOT/evidence/CHG-20261104-001/approval.txt
+Exit: 1 | Timestamp: 2026-11-06T09:51:07Z
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+apply_change.sh — Deterministic Policy Gate (8 Invariants)
+Change ID:        CHG-20261104-001
+Hash prefix:      19bacc11
+Target version:   v2.0.0
+Target file:      $REPO_ROOT/sandbox/app.txt
+Timestamp:        2026-11-06T09:54:18Z
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1/8] Validating argument schemas...
+  ✓ Change ID format valid (CHG-20261104-001)
+  ✓ Hash prefix format valid (19bacc11)
+  ✓ Target version format valid (v2.0.0)
+
+[2/8] Checking replay protection ledger...
+  ✓ No prior execution detected in ledger
+
+[3/8] Checking human approval file...
+Approval content:
+  APPROVED CHG-20261104-001 19bacc11
+plan_hash: 19bacc11137716da980617a60ef7acfb4360fb20b90b9440e40ba8cfc4214039
+target_version: v2.0.0
+approved_by: operator-key-cli
+timestamp: 2026-11-06T09:52:42Z
+hmac_sig: f6f95241420175294c1c745842f50214aefd45fabee38b31f9baa70e59c6ea46
+  ✓ Approval ID matches
+
+[4/8] Verifying cryptographic human operator signature...
+  ✓ Human operator HMAC signature verified (ID + Plan Hash + Version)
+
+[5/8] Verifying plan hash integrity...
+Actual SHA-256:   19bacc11137716da980617a60ef7acfb4360fb20b90b9440e40ba8cfc4214039
+Approved prefix:  19bacc11
+Actual prefix:    19bacc11
+Signed full hash: 19bacc11137716da980617a60ef7acfb4360fb20b90b9440e40ba8cfc4214039
+  ✓ Plan hash strictly matches approval (prefix and full 64-hex)
+
+[6/8] Checking reviewer verdict and plan binding...
+Verdict in review: APPROVED
+  ✓ Review cryptographically bound to current plan.md (64-hex match)
+  ✓ Reviewer verdict: APPROVED
+
+[7/8] Validating target path and containment...
+  ✓ Target path is strictly contained inside sandbox/ ($REPO_ROOT/sandbox/app.txt)
+
+[8/8] Applying change and executing verification check...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ALL CHECKS PASSED — Applying change
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Backup saved: $REPO_ROOT/evidence/CHG-20261104-001/app.txt.backup
+Version changed: v2.0.0 → v2.0.0
+
+Running health check...
+
+=== Sandbox Health Check ===
+Timestamp: 2026-11-06T09:54:18Z
+
+Reading: $REPO_ROOT/sandbox/app.txt
+version: v2.0.0
+name: change-desk-sandbox
+status: running
+last_updated: 2026-11-06
+
+Version:  v2.0.0  ✓
+Format:   valid  ✓
+
+=== HEALTH CHECK PASSED ===
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXECUTION COMPLETE: CHG-20261104-001
+check.sh: PASSED
+Exit: 0 | Timestamp: 2026-11-06T09:54:18Z
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
