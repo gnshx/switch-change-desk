@@ -4,80 +4,97 @@
 
 ---
 
-## The Problem: Trust Is the Bottleneck in AI Operations
+## The Problem: Velocity Without Verification Is an Outage Waiting to Happen
 
-We are at a strange inflection point in software engineering. I can open a chat with an AI coding agent, type *"bump the production app to v2.0.0"*, and it will happily update files, run migration scripts, and push code. There is no ticket, no peer review, and no verifiable audit trail.
+We are at an inflection point in software operations. I can open a chat with an AI coding agent, type *"bump the sandbox app to v2.0.0"*, and it will gladly edit files, run scripts, and push changes.
 
-The speed is intoxicating, but the blast radius is terrifying. When an unvetted change lands in production at 2 AM on a Friday, nobody can say who approved it, whether the team agreed on the rollback plan, or whether the code that executed matched the plan that was discussed.
+The speed is exhilarating, but the operational blast radius is terrifying:
+- Nobody can prove which agent proposed which diff.
+- Nobody can verify whether the plan that was discussed matches the code that actually executed.
+- Prompt injection or rogue room participants could trick an agent into executing unauthorized operations.
 
-The fundamental engineering question I set out to solve:  
-**How can we give autonomous AI agents the velocity to plan and prepare changes while making it deterministic, tamper-evident, and impossible for unapproved changes to reach production?**
+The engineering challenge I set out to solve:  
+**How can we give autonomous multi-agent teams the speed to plan and prepare changes while making execution deterministic, cryptographically tamper-evident, and strictly gated by human approval?**
 
 ---
 
 ## What I Built: Change Desk
 
-**Change Desk** is a collaborative multi-agent change management workflow hosted inside [Switch](https://github.com/sandbox-quantum/switch) and paired with an invariant policy gate (`tools/apply_change.sh`).
+**Change Desk** is a collaborative multi-agent change management workflow orchestrated inside **Switch** and enforced by a deterministic, local policy gate (`tools/apply_change.sh`).
 
-The workflow divides responsibilities among three specialized agent personas and a human operator:
-1. **The Requester:** Broadcasts a change request with a structured Change ID (`CHG-YYYYMMDD-NNN`).
-2. **The Planner Agent:** Analyzes the scope, draft steps, rollback procedures, and blast radius into `evidence/<change-id>/plan.md`, computing its SHA-256 fingerprint.
-3. **The Risk Reviewer Agent:** Reads the plan, verifies safety conditions against room knowledge (`policy/change-policy.md`), binds the plan's hash into its review, and stamps an `APPROVED` or `REJECTED` verdict into `evidence/<change-id>/review.md`.
-4. **The Human Approver:** Inspects the diff and review using a local CLI (`tools/approve.sh`), confirms the plan on an interactive TTY, and cryptographically signs an HMAC token using a host-level key outside the repo, binding Change ID, Plan Hash, and Target Version.
-5. **The Executor Agent (Addressing: Owner):** Gated by Switch so only the room owner can address this agent.
-6. **The Policy Gate (`apply_change.sh`):** A deterministic 8-invariant bash gate that checks the human approval, verifies the SHA-256 plan hash, confirms the reviewer verdict and plan binding, guards against path traversal, checks replay protection ledgers, executes the change, runs `sandbox/check.sh`, and automatically rolls back if health checks fail.
+The system divides operational duties among three specialized agent personas and a human operator:
+1. **The Human Requester:** Submits a change request with a structured Change ID (`CHG-YYYYMMDD-NNN`) in the `#change-desk` Switch room.
+2. **The Planner Agent (`@change-desk-planner`):** Scopes the objective, steps, and rollback procedure into `evidence/<id>/plan.md` and computes its exact SHA-256 fingerprint via `./tools/hash_plan.sh`.
+3. **The Risk Reviewer Agent (`@change-desk-reviewer`):** Audits the plan against room policy (`policy/change-policy.md`), binds the plan's 64-hex SHA-256 hash into its review, and stamps an `APPROVED` verdict into `evidence/<id>/review.md`.
+4. **The Human Operator:** Inspects the plan and review in a real terminal using `./tools/approve.sh`, confirms on an interactive TTY, and cryptographically signs an HMAC token using an operator key (`~/.config/change-desk/operator.key`) located outside the workspace.
+5. **The Executor Agent (`@change-desk-executor`):** Configured with Switch's `Addressing: Owner` policy, restricting instructions strictly to the room owner.
+6. **The Deterministic Policy Gate (`tools/apply_change.sh`):** Validates all 8 cryptographic invariants outside the LLM: replay ledger check, HMAC operator signature, SHA-256 plan hash matching, review-to-plan cryptographic binding, and directory containment inside `sandbox/`. It applies the change, executes `sandbox/check.sh`, records the execution in the ledger, and automatically rolls back if health checks fail.
+
+---
+
+## Live Run Numbers: What We Measured
+
+During live verification in Switch Console v0.40.1:
+- **Agents:** 3 specialized personas running concurrently on local toolchains.
+- **Planner Handoff:** Picked up `@change-desk-planner`, wrote `plan.md`, generated 64-hex SHA-256 hash (`19bacc11...`), and mentioned `@change-desk-reviewer`.
+- **Reviewer Audit:** Bound exact plan hash and posted `REVIEW READY: CHG-20261104-001 — APPROVED`.
+- **Executor Run:** Upon receiving `@change-desk-executor APPROVED ...`, executed the policy gate across **4 tool calls in 23 seconds**, verified all 8 invariants, bumped `sandbox/app.txt` from `v1.0.0` to `v2.0.0`, verified runtime health checks, and recorded the change in `evidence/.applied_ledger`.
+- **Automated Regression Suite:** 21/21 passing tests verifying tamper rejection, symlink escape defense, replay protection, and automated rollback.
 
 ---
 
 ## How Switch Made It Possible
 
-Three specific Switch capabilities made this architecture clean and practical:
+Three core Switch platform primitives made this architecture practical:
 
-### 1. Owner Addressing Access Control
-In Switch room settings, each agent can have distinct addressing rules. By setting the **Executor agent's addressing to `owner`**, Switch guarantees that guests or other agents in the room cannot address or instruct the Executor to trigger execution. The platform enforces this at the delivery layer before messages ever reach the model.
+### 1. Delivery-Layer Access Control (`Addressing: Owner`)
+In collaborative rooms, anyone can post messages. If an executor agent responded to anyone, an outsider or compromised room bot could trigger production changes. Switch solves this at the protocol layer: setting `Addressing: Owner` on the Executor ensures messages from non-owners never reach the agent prompt.
 
-### 2. Shared Workspace & Multi-Agent Specialization
-By pointing all three agents at the repository directory, Switch allows the Planner to produce evidence artifacts, the Reviewer to inspect and bind hashes, and the Executor to run the deterministic gate—all coordinated transparently in the `#change-desk` room.
+### 2. Multi-Agent Turn-Taking via Shared Workspaces
+Switch allows multiple agents to share a repository directory (`/home/ganesh/Desktop/switch-change-desk`). This allowed the Planner to produce `evidence/<id>/plan.md`, the Reviewer to inspect that exact file on disk, and the Executor to run the deterministic gate—all coordinated visibly in `#change-desk`.
 
 ### 3. One-Click Reproducibility via Template YAML
-Switch supports room templating. By packaging the entire architecture into [`switch-change-desk.template.yaml`](../switch-change-desk.template.yaml) (and validating it with Switch's internal linter), anyone can import the room, agents, instructions, and workspace configurations into Switch Console in a single click.
+By packaging the entire system into `switch-change-desk.template.yaml`, anyone can import the room, instructions, agent personas, and workspace mappings into Switch Console in a single click.
 
 ---
 
-## What Broke & What I Learned: A Guide for First-Time Switch Users
+## What Broke & What I Learned: A Field Guide for Switch Builders
 
-If you are building your first multi-agent workflow on Switch, here are the real pitfalls I hit and how to avoid them:
+Building a multi-agent system on real infrastructure is full of edge cases. Here are the four biggest challenges I hit and how to solve them:
 
-### Pitfall 1: Behavioral Prompts Are Not Security Boundaries
-My initial naive design assumed that instructing the Executor agent with *"Only execute if the user says APPROVED"* was enough. It wasn't. In edge-case testing, an agent could be socially engineered, or prompt drift could lead to executing changes before the reviewer had stamped a verdict.
+### 1. The Template Schema Trap
+*The Problem:* Early drafts assumed custom template keys like `handle`, `role`, and external file references for instructions. Switch Console strictly expects the official schema: top-level `params`, `agents`, `room`, and `kickoff`, with inline instructions and platform-recognized parameters (`directory`, `provider`, `location`).  
+*The Fix:* Use `make template` to compile markdown instructions into the official YAML schema, and validate it using Switch's internal template linter before importing.
 
-**The Fix:** Separate behavioral coordination from deterministic execution. Switch provides the human-agent collaboration layer, but the final execution *must* pass through a deterministic code gate (`tools/apply_change.sh`) that validates cryptographic hashes outside the LLM.
+### 2. Silent Stalls: Agents Need Explicit @mentions
+*The Problem:* Agents in a room don't act on broadcast messages unless they are addressed. Early test runs stalled because agents announced `PLAN READY` without an `@mention`.  
+*The Fix:* Wire explicit `@mentions` into the handoff protocol: the user mentions `@change-desk-planner`, the planner mentions `@change-desk-reviewer`, and the approval CLI prints `@change-desk-executor APPROVED <id> <hash>`.
 
-### Pitfall 2: The Stale Review Attack
-What happens if an agent drafts a plan, gets it reviewed, and then someone edits `plan.md` to slip in an unvetted step before human approval? Or what if a reviewer approves Plan A, but the human approves Plan B?
+### 3. Agent Sandboxing & `XDG_CONFIG_HOME`
+*The Problem:* When Switch launches an agent runtime, it sandboxes the process environment, redirecting `XDG_CONFIG_HOME` to a temporary directory in `/tmp/`. When the Executor ran `apply_change.sh`, the gate failed-closed because it couldn't find `operator.key` in `/tmp/.../change-desk/`.  
+*The Fix:* Update the gate script to resolve the key from the real user home directory (`getent passwd` / `$HOME`), preserving the fail-closed check while allowing sandboxed agents to verify host-signed HMAC tokens.
 
-**The Fix:** Cryptographic review-to-plan binding. The Reviewer agent must record the exact SHA-256 hash of the plan it inspected inside `review.md`. The policy gate checks that:
-```
-Review Bound Plan Hash == Actual Current plan.md SHA-256 == Approved Fingerprint Prefix
-```
-If anything changed by even a single byte after review, the gate refuses execution with `REVIEW-TO-PLAN MISMATCH`.
-
-### Pitfall 3: Agent Approval Forgery & Residual Risk
-If the approval file (`evidence/<id>/approval.txt`) is just a plain text file in the workspace, any agent with filesystem access could write that file directly.
-
-**The Fix & Residual Risk:** I wrote `tools/approve.sh`, a local CLI for the human operator. It displays the plan diff, prompts the human for confirmation, and signs the approval using an HMAC key stored in `~/.config/change-desk/operator.key` (outside the repo). The policy gate verifies this signature. This protects against prompt injection or accidental room-level approval forging. We also honestly document the residual risk: because prototype agents run under the same OS user, file permissions alone don't prevent process-level reads; in production, this should be paired with separate OS accounts, container isolation, or a hardware security key (YubiKey).
-
-### Pitfall 4: Test Repeatability & Cold-State Resets
-Multi-agent testing creates dirty state fast. Evidence folders accumulate, version numbers bump, and previous runs cause false positives. Writing an idempotent reset script (`demo/reset.sh`) and building pre-packaged offline fixtures (`demo/fixtures/`) allowed me to build a 21-test automated regression suite (`make test`) that runs offline in seconds.
+### 4. Hash Typos: LLMs Cannot Calculate SHA-256
+*The Problem:* Asking an LLM to "compute the plan hash" leads to hallucinations or typos. If the reviewer's hash differs from the real hash by a single character, the gate refuses execution.  
+*The Fix:* Create `./tools/hash_plan.sh <change-id>`, a deterministic helper tool that agents execute via bash to obtain the exact 64-character hash.
 
 ---
 
-## Try It in 60 Seconds
+## Honest Security Limits & Residual Risks
 
-The full repository is open-source at:  
+No engineering system is infallible, and credibility requires honesty about boundaries:
+1. **Same-User Residual Risk:** In this prototype, agents run under the same OS user (`ganesh`). While file permissions (`600`) protect `operator.key` from accidental room-level reads, they do not provide process isolation against same-user inspection. In enterprise production, the approver CLI should run under a separate OS user or hardware token (YubiKey).
+2. **Addressing Policy Scope:** The `Addressing: Owner` setting was verified in Switch Console configuration. For complete production defense, combine room-level addressing with network-isolated execution runners.
+3. **Sandbox Scope:** The policy gate strictly confines changes to files inside `sandbox/` and rejects directory traversal (`..`) or escaping symlinks.
+
+---
+
+## Reproduce It in Under 60 Seconds
+
+The complete repository, sanitized live-run evidence, and offline regression suite are open-source at:  
 👉 **[https://github.com/gnshx/switch-change-desk](https://github.com/gnshx/switch-change-desk)**
 
-You can run the entire regression suite offline right now without API keys:
+Run the test suite offline right now without API keys:
 
 ```bash
 git clone https://github.com/gnshx/switch-change-desk.git
@@ -86,20 +103,20 @@ cd switch-change-desk
 # Run the 21-test policy gate regression suite
 make test
 
-# Watch the happy path demo fixture (v1.0.0 → v2.0.0)
-make demo-happy
-
-# Watch the tamper detection demo (post-approval edit rejected)
+# Run the offline tamper-detection demo
 make demo-tamper
 
-# Watch the automatic rollback demo (runtime check failure reverts state)
+# Run the automated rollback demo
 make demo-rollback
 ```
 
-To run it live with agents, import `switch-change-desk.template.yaml` into Switch Console and follow `demo/script.md`.
+To run it live with Switch:
+1. Import `switch-change-desk.template.yaml` in Switch Console.
+2. Select your provider runtime and workspace directory.
+3. Click **Create all** and follow [`demo/script.md`](../demo/script.md).
 
 ---
 
 ## Conclusion
 
-The promise of AI agents is velocity. But in production engineering, velocity without verification is just an outage waiting to happen. By combining Switch's collaborative room controls with deterministic, tamper-evident policy gates, Change Desk shows how we can give agents real operational power while keeping humans firmly and verifiably in control.
+Multi-agent AI systems do not have to be reckless. By pairing Switch's collaborative room controls with deterministic, local cryptographic policy gates, Change Desk demonstrates that autonomous speed and enterprise-grade rigor can live in the same room.
