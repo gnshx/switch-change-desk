@@ -21,6 +21,26 @@ When an AI agent can execute changes directly, speed is easy but accountability 
 2. **Switch Access Control:** The Executor agent is set to **`Who can talk to your agent: Only me (owner)`**, ensuring other bots and guests aren't admitted to instruct it.
 3. **Deterministic Gate (`tools/apply_change.sh`):** A bash script that verifies 8 invariants outside the LLM (replay ledger, HMAC signature, plan hash match, review-to-plan binding, sandbox containment) and rolls back automatically on health check failure.
 
+### ⚡ Judge Quickstart (< 60 Seconds)
+
+```bash
+# 1. Clone repository
+git clone https://github.com/gnshx/switch-change-desk.git
+cd switch-change-desk
+
+# 2. Run the offline regression suite (21 tests pass in ~2s without API keys)
+make test
+
+# 3. Test offline fixtures
+make demo-tamper     # Demonstrates hash mismatch gate refusal
+make demo-rollback   # Demonstrates automatic backup rollback
+```
+
+To run live in Switch:
+1. Open **Switch Console** → **Templates** → **Use template** on `change-desk` (or click **Import template** and choose [`switch-change-desk.template.yaml`](switch-change-desk.template.yaml)).
+2. Parameters: ensure **Provider** is `OpenCode` and **Directory** is your repo clone path.
+3. Click **Create all** and follow [`demo/script.md`](demo/script.md).
+
 ---
 
 ## The Problem
