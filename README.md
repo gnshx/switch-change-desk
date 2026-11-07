@@ -10,7 +10,7 @@ Built for the **Switch Hackathon** (Track 1: Best Business Workflow; Side Track:
 *Developed with Antigravity; tested live on Switch Console v0.40.1 with OpenCode runtime (nemotron-3.5-lightning-free).*
 
 - **Live Walkthrough Video:** `[VIDEO_LINK_PLACEHOLDER]` *(~2:45 walkthrough)*
-- **Blog Post:** [`docs/blog.md`](docs/blog.md) *(#HowISwitch)*
+- **Blog Post:** [How I Switched: a human-approved change desk for AI agents (DEV.to)](https://dev.to/showspeed_i_caeaca59a9c74/how-i-switched-a-human-approved-change-desk-for-ai-agents-2mml) *(#HowISwitch | local copy: [`docs/blog.md`](docs/blog.md))*
 - **Sanitized Live Run Evidence:** [`examples/evidence/live-run-CHG-20261104-001/`](examples/evidence/live-run-CHG-20261104-001/)
 
 ![Change Desk Live Execution in Switch Console](docs/screenshots/04-execution-success.jpg)
@@ -142,7 +142,7 @@ switch-change-desk/
     plan.md                         ← Engineering Build Plan & Phase Tracking
     agent-design.md                 ← Multi-agent interaction specification
     SUBMISSION.md                   ← Hackathon submission package
-    blog.md                         ← #HowISwitch blog post draft
+    blog.md                         ← #HowISwitch blog post (published on DEV.to)
 ```
 
 ---

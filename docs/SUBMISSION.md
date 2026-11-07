@@ -10,7 +10,7 @@
 | **Side Tracks** | Best Blog (#HowISwitch) |
 | **Repository** | [https://github.com/gnshx/switch-change-desk](https://github.com/gnshx/switch-change-desk) |
 | **Demo Video** | `[VIDEO_LINK_PLACEHOLDER]` (~2:45 walkthrough) |
-| **Blog Post** | `[BLOG_LINK_PLACEHOLDER]` (available in `docs/blog.md`) |
+| **Blog Post** | [How I Switched: a human-approved change desk for AI agents (DEV.to)](https://dev.to/showspeed_i_caeaca59a9c74/how-i-switched-a-human-approved-change-desk-for-ai-agents-2mml) |
 | **Runtime & Tooling** | Developed with Antigravity; live run on Switch Console v0.40.1 with OpenCode runtime (nemotron-3.5-lightning-free) |
 
 ---
@@ -55,5 +55,5 @@ The submission is structured for rapid evaluation and reproduction. Evaluators c
 - [x] Committed live-run evidence trail provided: `examples/evidence/live-run-CHG-20261104-001/` and offline fixture `examples/evidence/CHG-DEMO-001/`
 - [x] Comprehensive documentation organized in `docs/` (`prd.md`, `mvp.md`, `plan.md`, `agent-design.md`, `blog.md`)
 - [ ] Record 2.5-min walkthrough video following `demo/script.md` and replace placeholder link
-- [ ] Publish blog draft and replace placeholder link
+- [x] Published blog post on DEV Community: [How I Switched: a human-approved change desk for AI agents](https://dev.to/showspeed_i_caeaca59a9c74/how-i-switched-a-human-approved-change-desk-for-ai-agents-2mml)
 - [ ] Submit before deadline: Nov 7, 2026, 11:59 PM IST

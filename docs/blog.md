@@ -1,6 +1,7 @@
 # How I Switched: a human-approved change desk for AI agents
 
-*#HowISwitch — Flip the Switch Hackathon 2026*
+*#HowISwitch — Flip the Switch Hackathon 2026*  
+*Published on DEV Community: [https://dev.to/showspeed_i_caeaca59a9c74/how-i-switched-a-human-approved-change-desk-for-ai-agents-2mml](https://dev.to/showspeed_i_caeaca59a9c74/how-i-switched-a-human-approved-change-desk-for-ai-agents-2mml)*
 
 When an AI agent can change a system with one prompt, speed is easy and accountability isn't. Who reviewed the plan? Who approved it? Was the plan that ran the plan that was approved? I built **Change Desk** during the Flip the Switch hackathon to answer those questions, solo, using Switch and Antigravity.
 
